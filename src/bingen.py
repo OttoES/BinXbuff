@@ -3,6 +3,7 @@
 #  simple parser for parsing protobuf .proto files
 #
 #  Copyright 2010, Paul McGuire
+#  Modified  2018,  otto    
 #
 
 from pyparsing import (Word, alphas, alphanums, Regex, Suppress, Forward,

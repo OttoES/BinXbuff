@@ -4,5 +4,7 @@
 			"path": "/home/otto/work/OS-TOOL-PARSER-01"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"python.pythonPath": "/usr/bin/python3"
+	}
 }

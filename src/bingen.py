@@ -5,15 +5,18 @@
 #  Copyright 2010, Paul McGuire
 #  Modified  2018,  otto    
 #
+from pprint import pprint
 
 from pyparsing import (Word, alphas, alphanums, Regex, Suppress, Forward,
     Group, oneOf, ZeroOrMore, Optional, delimitedList, Keyword, cStyleComment, cppStyleComment,
-    restOfLine, quotedString, Dict)
+    restOfLine, quotedString,QuotedString, Dict)
+
 
 enumList     = []
 structList   = []
 structDict   = {}
 headerList   = {}
+annotateDict = {}
 
 def addStructToList(structt):
     sdict = structt.asDict()
@@ -29,20 +32,37 @@ def addEnumToList(enumm):
 def addToHeaderDict(headerName,structt):
     headerList[headerName] = structt.asDict()
 
+def addToAnnotationDict(annotateName,annotate):
+    s = annotate[1]
+    # first remove the quotes
+    if s.startswith("'''"):  s = s[3:-3]
+    if s.startswith('"'):  s = s[1:-1]
+    annotateDict[annotate['name']] = s
 
 
 comment       = '## ' + restOfLine
 #comment       = '#' + restOfLine
 CMNT          = Optional(cStyleComment("comment"))
 CMNT2         = Optional( (Suppress('//') + restOfLine("comment2")) )  #Optional(cppStyleComment("comment2"))
-
+STRQ3         = QuotedString("'''", multiline=True)
+ANNOTSTR      = ( QuotedString("'''", multiline=True) | quotedString )
+#IDENTIFIER = Regex(r'[a-zA-Z_][a-zA-Z_0-9]*')
+#INTEGER    = Regex(r'([+-]?(([1-9][0-9]*)|0+))')
+#IDENTIFIER       = Word(alphas+"_", alphas+nums+"_" )
+INT_DECI   = Regex('([+-]?(([1-9][0-9]*)|0+))')
+INT_OCT    = Regex('(0[0-7]*)')
+INT_HEX    = Regex('(0[xX][0-9a-fA-F]*)')
+INT        = INT_HEX | INT_OCT | INT_DECI
+FLOAT      = Regex('[+-]?(((\d+\.\d*)|(\d*\.\d+))([eE][-+]?\d+)?)|(\d*[eE][+-]?\d+)')
+SIZE       = INT
+#VARNAME    = IDENTIFIER
 ##ident = Word(alphas+"_",alphanums+"_").setName("identifier")
-ident = Word(alphas+"_",alphanums+"_")("name")
-integer = Regex(r"[+-]?\d+")
+IDENT      = Word(alphas+"_",alphanums+"_")("name")
+xxINT        = Regex(r"[+-]?\d+")
 
-expr = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*")("expr")
+EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*")("expr")
 
-LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON = map(Suppress,"{}[]()=;:")
+LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT = map(Suppress,"{}[]()=;:@")
 
 #kwds = """message required optional repeated enum extensions extends extend 
 #          to package service rpc returns true false option import"""
@@ -61,11 +81,11 @@ structtBody         = Forward()
 ##structDefn          = CMNT + STRUCT_ - ident("structName") + LBRACE + structtBody("body") + RBRACE
 ###structDefn          = CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident)("baseName") + LBRACE + structtBody("body") + RBRACE
 ####structDefn          = (CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-structDefn          = (CMNT + STRUCT_ - ident + Optional(HEADEDBY_ + ident("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
+structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 
 #typespec = oneOf("""double float int32 int64 uint32 uint64 sint32 sint64 
 #                    fixed32 fixed64 sfixed32 sfixed64 bool string bytes""") | ident
-typespec            = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char wchar string zstring bytes enum8 enum16 enum32 TAG8 TAG16 """) | ident
+typespec            = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char wchar string zstring bytes enum8 enum16 enum32 TAG8 TAG16 """) | IDENT
 ##typespec            = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char string zstring bytes enum8 enum16 enum32 """)
 
 typeint             = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char wchar byte""")
@@ -77,25 +97,30 @@ typeres             = oneOf("""STRUCTLEN8 STRUCTLEN16 CRC8 CRC16 CRC32""")
 
 #typespec            =  typestd | typetag | typeres | ident
 
-fieldtag            = typetag("type")  + ident + Optional(EQ + ident("value"))
-fieldint            = typeint("type")  + Optional(LBRACK + expr("arrLen") + RBRACK)  + ident + Optional(EQ + integer("value"))
-fieldstr            = typestr("type")  + ident + Optional(EQ + quotedString("value"))
-fieldenum           = typeenum("type") + ident("enumName") + ident + Optional(EQ + ident("value"))
-fieldres            = typeres("type")  + ident + LBRACK + ident("rangeStart")+COLON+ ident("rangeEnd")+RBRACK
+fieldtag            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
+fieldint            = typeint("type")  + Optional(LBRACK + EXPR("arrLen") + RBRACK)  + IDENT + Optional(EQ + EXPR("value"))
+fieldstr            = typestr("type")  + IDENT + Optional(EQ + quotedString("value"))
+#fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
+fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
+fieldenum           = typeenum("type") + IDENT("enumName") + IDENT + Optional(EQ + IDENT("value"))
+fieldres            = typeres("type")  + IDENT + LBRACK + IDENT("rangeStart")+COLON+ IDENT("rangeEnd")+RBRACK
 
-fieldstruct         = ident("stype")   + ident
+fieldstruct         = IDENT("stype")   + IDENT
 
-rvalue              = integer | TRUE_ | FALSE_ | ident
-fieldDirective      = LBRACK + Group(ident("fid") + EQ + rvalue("fidval")) + RBRACK
+rvalue              = INT | TRUE_ | FALSE_ | IDENT
+fieldDirective      = LBRACK + Group(IDENT("fid") + EQ + rvalue("fidval")) + RBRACK
 ##fieldDefn           = (( REQUIRED_ | OPTIONAL_ | ARRAY_ )("fieldQualifier") - 
 ##                      typespec("typespec") + ident("ident") + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI) + Optional(CMNT2("comment2"))
 ###fieldDefn           = typespec("type") + ident + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI + Optional(CMNT2("comment2"))
-field               = fieldint | fieldstr | fieldenum | fieldtag | fieldres | fieldstruct 
-fieldDefn           = field  + SEMI + Optional(CMNT2)
+field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldtag | fieldres | fieldstruct 
+fieldDefn           = CMNT + field  + SEMI + Optional(CMNT2)
 
 # enumDefn        ::= 'enum' ident '{' { ident '=' integer ';' }* '}'
 ##enumDefn            = CMNT + ENUM_("typespec") - ident('name') +  LBRACE + Dict( ZeroOrMore( Group(ident("name") + EQ + integer("value") + SEMI + CMNT2 ) ))('values') + RBRACE
-enumDefn            = (CMNT + ENUM_("type") - ident +  LBRACE + Dict( ZeroOrMore( Group(ident + EQ + integer("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
+#enumInline          = (LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
+##enumDefn            = (CMNT + ENUM_("type") - IDENT +  LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
+###enumDefn            = (CMNT + ENUM_("type") + IDENT +  LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
+enumDefn            = (CMNT + ENUM_("type") + IDENT("enumName") +  LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
 
 # extensionsDefn ::= 'extensions' integer 'to' integer ';'
 ##extensionsDefn = EXTENSIONS_ - integer + TO_ + integer + SEMI
@@ -124,32 +149,76 @@ structtBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn ) ))
 
 importDirective = IMPORT_ - quotedString("importFileSpec") + SEMI
 
-optionDirective = OPTION_ - ident("optionName") + EQ + quotedString("optionValue") + SEMI
+optionDirective = OPTION_ - IDENT("optionName") + EQ + quotedString("optionValue") + SEMI
+
+
+#annotateDef     = AT + (IDENT + EQ + (quotedString | STRQ3)).setParseAction(addToAnnotationDict)
+annotateDef     = AT + (IDENT + EQ + ANNOTSTR).setParseAction(addToAnnotationDict)
 
 #topLevelStatement = Group(structDefn | structExtension | enumDefn | serviceDefn | importDirective | optionDirective)
 ##topLevelStatement = Group(structDefn | structExtension | enumDefn | importDirective | optionDirective)
-topLevelStatement = Group(structDefn  | enumDefn | importDirective | optionDirective)
+topLevelStatement = Group(annotateDef | structDefn  | enumDefn | importDirective | optionDirective)
 
 ##parser = Optional(packageDirective) + ZeroOrMore(topLevelStatement)
-parser =  ZeroOrMore(topLevelStatement)
+#parser = Group(CMNT) + ZeroOrMore(topLevelStatement)
+parser = ZeroOrMore(topLevelStatement)
 
 parser.ignore(comment)
 
 
 test1 = """
+@name       =  "Test BBX"
+@version    =  "0.1-4"
+@doc_header =  "BBX document generation Testing"
+@doc_intro  =  '''This is the definiton of the message protocoll 
+                  used for bla-bla-bla'''
+
+@c_includes =  '''
+#include <stdio.h>
+#include "comms.h"
+'''
+
+@c_code = '''
+void testfun(void)
+{
+   dosomething();
+} // end test
+'''
+
+/* 
+ This is the common header for everybody.
+*/
 struct GGheader
 {
-  uint8     dest;
-  MSG_ID16  msgid;
+    /* This is to test a very long comment line. 
+       The destination is where the message shoud be send to.
+       Each device should be allocad a fixed address.
+    */
+  uint8     dest;   // Alt dest comment
+  MSG_ID16  msgid; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
   CRC16     hdrCrc[dest:msgid]; 
 }
+
+enum Gender {
+    UNKNOWN = 0;    
+    MALE    = 1;   // set as male
+    FEMLE   = 0x2;   // set as female
+    OTHER   = 0x3;   // if a person identifies with a different gender 
+}
+
+/*
+  This is the message to set the user profile.
+  Line 2 of comment
+*/
 struct SetProfile headedby GGheader 
 { 
-  int32 id = 1;    
-  char[20]  surname;
+  int32 id = 1;      // the user identificatin number
+  char[20]  surname; // the user surname
+  enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
   string name;   
+  enum8  Gender gender;
   int8     dlen;
-  CRC16     hdrCrc2[dest:dlen]; 
+  CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
   char[dlen]    addit;
   zstring email = "eeeeee"; 
 }"""
@@ -199,9 +268,14 @@ struct Student extends Person {
 """
 
 
-parser.runTests([test1, test2])
-print(enumList)
-print(structList)
+
+def cleanstr(s):
+    if s.startswith("'''"):  s = s[3:-3]
+    if s.startswith('/*'):  s = s[2:-2]
+    if s.startswith('"'):  s = s[1:-1]
+    #if s.endswith('*/'):  s = s[2:]
+    return s.replace("\n", " ")
+
 
 
 class BaseCodeGenerator:
@@ -217,19 +291,25 @@ class BaseCodeGenerator:
     typeTable2          = {"string":"char","zstring":"char","ustring":"wchar","uzstring":"wchar"}
     typeSizeTable       = {"char":1,"bool":1,"wchar":2,"byte":1}
     packBuffName        = "buff"  
+    def __init__(self,bbxDef= None,ofile=None):
+        if bbxDef is not None:
+            pp = parser.parseString(bbxDef)
+    def pprint(self):
+        pprint(enumList)
+        pprint(structList)
     def lookupType(self,vartype):  
         if vartype in self.typeTable2: return  self.typeTable2[vartype]
         if vartype in self.typeTable1: return  self.typeTable1[vartype]
         return vartype+self.typePostfix          
     def lookupTypeSize(self,vartype):  
-        # handel all the non standardcases he is in the table
+        # handel all the non standard cases that is in the table
         if vartype in self.typeSizeTable: return  self.typeSizeTable[vartype]
-        # do the standard cases where the bit iszeis embedded in the tpye name
+        # do the standard cases where the bit isze is embedded in the type name
         if vartype.find("8") >0 : return 1
         if vartype.find("16")>0 : return 2
         if vartype.find("32")>0 : return 4
         if vartype.find("64")>0 : return 8
-        return 0xEEEE
+        return -100000  # this is an n error
     def genPackVar(self,buff,buffpos,vartype,varname, varval): 
         #if vartype in self.typeTable2: 
         #    return self.funcPackNamePrefix+vartype+"("+buff+", "+buffpos+", "+varname+","+varval+");"
@@ -244,6 +324,29 @@ class BaseCodeGenerator:
         for f in fields:
             s = s + self.lookupType(f["type"])+ "  "+ f["name"] + ","
         return s[:-1] 
+    def genPackFieldCode(self,f):
+        tsize = self.lookupTypeSize(f["type"])
+        if "arrLen" in f:  
+            lenstr = str(tsize)+"*" + f["arrLen"]
+            ## this is only valid if the endianess is the same for multibyte types !!!!
+            return "memcpy("+self.packBuffName+","+f["name"] +","+lenstr + ");\n"
+        if tsize == 1:
+            return self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
+        elif tsize == 2: 
+            # this is stored in little endian
+            s = self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
+            return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
+        elif tsize == 4: 
+            # this is stored in little endian
+            s  = "// it is faster to copy byte by byte than calling memcpy()\n"
+            s += "    "+ self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
+            s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
+            s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>16);\n"
+            return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>24);\n"
+        s  = "pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
+        s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
+        return s
+    
     def genPackFields(self,structt):    
         fields    = structt["body"]
         s = ""
@@ -252,8 +355,10 @@ class BaseCodeGenerator:
               p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
               p2,fnd2 = self.genPackFieldPosCalc(structt,f['rangeEnd'],True)
               s += "    int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.packBuffName+", "+p1 + "," + p2 + ");\n" 
-            s += "    pos    += " + self.funcPackNamePrefix + f["type"]+ "("
-            s += self.packBuffName +", int pos,"+ f["name"] + ");\n"
+
+            s += "    " + self.genPackFieldCode(f) 
+            #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
+            #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s 
     # includeField inidcate if the field named fieldName shold be included in the position calculations    
     #def genPackFieldPosCalc(self,fields,fieldName,includeField):    
@@ -266,13 +371,13 @@ class BaseCodeGenerator:
             parStruct = structDict[parnt]
             s,fieldFound = self.genPackFieldPosCalc(parStruct,fieldName,includeField)
             if fieldFound: return s,True
-            #if s != "":  s += "+ "
+            if s != "":  s += "+ "
         for f in fields:
             # if the selected field size must be included
             if includeField == False:    
                 if f["name"] == fieldName: 
                     if len(s) < 1: return "0",True  # if it is the first element
-                    return s[:-1]
+                    return s[:-1],True
             # if it is an array, multiply with the array length        
             if 'arrLen' in f: 
                 s = s +" ("+f['arrLen']+")*"
@@ -280,7 +385,7 @@ class BaseCodeGenerator:
             s += str(self.lookupTypeSize(f["type"]))+ "+"
             if f["name"] == fieldName: 
                 return s[:-1],True
-        return s,False
+        return s[:-1],False
     def genPackLenCalc(self,structt):    
         # calculate the struct size by finding the last field offset
         lastField = structt["body"][-1]        
@@ -297,6 +402,12 @@ class BaseCodeGenerator:
         #         s = s +" ("+f['arrLen']+")*"
         #     s += str(self.lookupTypeSize(f["type"]))+ " +"
         # return s[:-1]
+    ## try to simplify the equation if it only contains numbers
+    def simplifyEq(self,eqs):    
+        if any(c not in '0123456789+*- ' for c in eqs):  
+            return eqs,False
+        ll = eval(eqs)
+        return ll,True
     def genPackFun(self,struct):
         structnme = struct["name"]
         fields    = struct["body"]
@@ -314,14 +425,6 @@ class BaseCodeGenerator:
         s += "} // end "+ self.funcPackNamePrefix+structnme+"\n"
         return s
 
-    def xxgenVarDecl(self,vartype,varname,defval= None, termstr = ";"):
-        if vartype in self.typeTable2: 
-            s = self.lookupType(vartype) +" "+varname+"[]"
-        else:  
-            s = self.lookupType(vartype) +" "+varname
-        if defval is not None: s = s + " = " + defval
-        s = s + termstr   
-        return s
 
     def genVarDecl(self,sfield, termstr = ";"):
         if not "type" in sfield:
@@ -337,6 +440,37 @@ class BaseCodeGenerator:
         if 'value' in sfield:
           s = s + " = " +  sfield["value"]
         s = s + termstr   
+        return s
+    def genAllEnumDefs(self):    
+        s = ""
+        
+        for enm in enumList:
+            s += "\nenum "+enm["enumName"] + " {\n"
+            elmlist = enm["values"]
+            for vv in elmlist:
+                #elms = elmlist[vv]
+                #s += " "+vv +" = "+ elms["name"] + "\n"
+                #s += " "+vv +" = "+ "FF" + "\n"
+                s += " "+vv["name"] +" = "+ vv["value"]+","
+                if "comment2" in vv:
+                  s += "    // " + vv["comment2"]
+                s += "\n"
+            s += "}; // end enum\n" 
+
+        return s
+    def genHeader(self,pp):
+        s = "*Autogenerated code\n"
+        if  "comment" in pp:
+          s += pp["comment"]
+        return s
+
+    def genAll(self):
+        s  = ""
+        s += annotateDict.get('c_includes',"")
+        s += annotateDict.get('c_code',"")
+        s += self.genAllEnumDefs()
+        for st in structList:
+            s += cgen.genPackFun( st) +"\n"
         return s
 
 
@@ -365,12 +499,135 @@ class OOcodeGenerator(BaseCodeGenerator):
         return s
 
 
-cgen = OOcodeGenerator()
-s = cgen.genStruct( structList[0])
-print(s)
-s = cgen.genPackFun( structList[0])
-print(s)
-s = cgen.genPackFun( structList[1])
-print(s)
+class MarkdownGenerator(BaseCodeGenerator):
+    H1     = "# "
+    H2     = "## "
+    H3     = "### "
+    LIST   = "* "
+    BOLT   = "**"
+    LINE   = "___\n"
+    DLINE  = "___\n___\n"
+    NLNL   = "\n"
+    BR     = "\n"
+    COL    = "|"
+    ROW    = "\n|"
+    def genInternalLink(m,ltext,linktag=None):
+        if linktag is None: linktag= ltext
+        #if ltext in enumList:
+        #   s ="["+ltext+"](#"+"enum-" + ltext.lower() +")"
+        #elif ltext in structList:  
+        s ="["+ltext+"](#" + linktag.lower() +")"
+        return s
+    def genDocEnums(m):
+        s  = m.H2 + "Enumerations\n" + m.LINE
+        for enm in enumList:
+            s += m.H3 + "Enum " + enm["enumName"] +"\n"
+            if "comment" in enm:
+                s += cleanstr(enm["comment"]) +m.NLNL
+            # if "parentName" in st:
+            #     s += "Structure inherits all fields from " + m.BOLT
+            #     s += st["parentName"] + m.BOLT + " and add these" + m.BR
+            #     parentstr = m.ROW + "Parent" + m.COL + m.genInternalLink(st["parentName"]) + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
+            #     #parentstr = m.ROW + "Parent" + m.COL + st["parentName"] + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
+            # else: 
+            #     parentstr = ""
+            #     s += "Fields in this structure" + m.BR
+            s += m.ROW + "Tag" + m.COL + "Value" + m.COL + "Comment"  + m.COL
+            s += m.ROW + "------" + m.COL + "-----" + m.COL + "------------------------------"  + m.COL
+            for vv in enm["values"]:
+                if "comment" in vv: cmt = cleanstr(vv["comment"])
+                else: cmt = ""
+                if "comment2" in vv: cmt += " " +vv["comment2"]
+                s += m.ROW + vv["name"] + m.COL + vv["value"] + m.COL + cmt + m.COL
+            s += m.NLNL 
+        return s        
+    def genDocStructs(m):
+        s  = m.H2 + "Structures\n" + m.LINE
+        for st in structList:
+            #s += m.LINE
+            s += m.H3 + st["name"] +"\n"
+            if "comment" in st:
+                s += cleanstr(st["comment"]) +m.NLNL
+            if "parentName" in st:
+                s += "Structure inherits all fields from " + m.BOLT
+                s += st["parentName"] + m.BOLT + " and add these" + m.BR
+                parentstr = m.ROW + "Parent" + m.COL + m.genInternalLink(st["parentName"]) + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
+                #parentstr = m.ROW + "Parent" + m.COL + st["parentName"] + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
+            else: 
+                parentstr = ""
+                s += "Fields in this structure" + m.BR
+            s += m.ROW + "Field" + m.COL + "Type" + m.COL + "Array" + m.COL + "Comment"  + m.COL
+            s += m.ROW + "------" + m.COL + "-----" + m.COL +"-----" + m.COL + "------------------------------"  + m.COL
+            s += parentstr
+            for f in st["body"]:
+                if "comment" in f: cmt = cleanstr(f["comment"])
+                else: cmt = ""
+                if "comment2" in f: cmt += " " +f["comment2"]
+                if "arrLen" in f: arrLen = f["arrLen"]
+                else: arrLen = "-"
+                if f["type"].find("enum")>=0: 
+                    etxt  = f["enumName"]
+                    vtype = f["type"] + " " + m.genInternalLink(etxt,"enum-"+etxt)
+                else: vtype = f["type"]
+                s += m.ROW + f["name"] + m.COL + vtype + m.COL + arrLen + m.COL + cmt + m.COL
+            slen,ret = m.genPackLenCalc(st)    
+            simlen,canSimplify = m.simplifyEq(slen)
+            if canSimplify : simlen = str(simlen) 
+            else : simlen = "variable"
+            s += m.ROW + "Total" + m.COL + " length" + m.COL + simlen + m.COL + slen  + m.COL
+            s += m.NLNL 
+        return s
+
+    def genDocHeader(m):
+        s = ""
+        if "doc_header" in annotateDict:
+            s += m.H1 +  cleanstr(annotateDict["doc_header"])+ m.NLNL
+        else:
+            s += m.H1 +  "Title" + m.NLNL
+        s += m.H3 
+        if "name" in annotateDict:
+            s += cleanstr(annotateDict["name"])
+        if "version" in annotateDict:
+            s += " version " + cleanstr(annotateDict["version"])
+        s +=  m.NLNL
+        s += m.LINE
+        if "doc_intro" in annotateDict:
+            s += m.H2 + "Intoduction\n" + cleanstr(annotateDict["doc_intro"]) + m.NLNL
+        return s
+    def genAll(m):
+        s  = m.genDocHeader()      
+        s += m.DLINE
+        s += m.genDocEnums()
+        s += m.DLINE
+        s += m.genDocStructs()
+        return s
 
 
+#parser.runTests([test1, test2])
+# pp = parser.parseString(test1)
+# print(enumList)
+# print(structList)
+
+
+#cgen = OOcodeGenerator(test1)
+# s = cgen.genStruct( structList[0])
+# print(s)
+# s = cgen.genPackFun( structList[0])
+# print(s)
+# #s = cgen.genPackFun( structList[1])
+# #print(s)
+
+# cgen.pprint()
+
+# s = cgen.genHeader(pp.asDict())
+# print(s)
+# print(pp.asDict())
+cgen = OOcodeGenerator(test1)
+cgen.pprint()
+s = cgen.genAll()
+print(s)
+# print(annotateDict)
+
+# docgen = MarkdownGenerator() 
+# s = docgen.genAll()
+# print(s)

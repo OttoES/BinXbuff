@@ -62,7 +62,7 @@ xxINT        = Regex(r"[+-]?\d+")
 
 EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*")("expr")
 
-LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
+LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP = map(Suppress,"{}[]()=;:@.")
 
 #kwds = """message required optional repeated enum extensions extends extend 
 #          to package service rpc returns true false option import"""
@@ -82,10 +82,7 @@ structtBody         = Forward()
 ###structDefn          = CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident)("baseName") + LBRACE + structtBody("body") + RBRACE
 ####structDefn          = (CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #####structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) +Optional(AT+IDENT + EQ + ANNOTSTR("anno")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-structDecl          = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
-structAnnotations   = Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)
-structDefn          = (structDecl + structAnnotations + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-#######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
+structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 
 #typespec = oneOf("""double float int32 int64 uint32 uint64 sint32 sint64 
 #                    fixed32 fixed64 sfixed32 sfixed64 bool string bytes""") | ident
@@ -202,7 +199,7 @@ struct GGheader
     */
   uint8     dest;   // Alt dest comment
   MSGID16   mM; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
-  uint16    msg_id = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
+  uint16    mid = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
   CRC16     CalcCrc16[dest:msgid];  //  CRC16     CalcCrc16(dest..msgid); 
 }  
 
@@ -218,8 +215,7 @@ enum Gender {
   Line 2 of comment
 */
 struct SetProfile headedby GGheader 
-@CC=56
-<MSG_ID = 0x1155>
+@MSG_ID = 0x1155
 { 
   int32 id = 1;      // the user identificatin number
   char[20]  surname; // the user surname
@@ -297,7 +293,7 @@ class BaseCodeGenerator:
     typePostfix         = "_t"
     funcNamePrefix      = "BIN_"
     funcPackCallPrefix  = "BIN_call"
-    funcPackBaseName    = "packMsg"
+    funcPackBuffPrefix  = "BIN_pack"
     funcProcessBuffName = "CallStoreSendBuffer"
     funcUnpackNamePrefix= "BIN_unpack"
     noTypeName          = "void"
@@ -385,14 +381,6 @@ class BaseCodeGenerator:
         return s[:-1] 
     #####-------------------------------------
     def makeFunName(self,structt,retType,funName,args,isClassFun = True):
-        """ Make a valid function declaration
-
-        Arg:
-          funName    - the base name (root) of the name. If it is part of a class
-                       it should be prefixed wih the class name (or what ever the 
-                       programming language require)
-          isClassFun -  will declare it as a static (a class function)
-        """
         s = ""
         if isClassFun: s+= "static "
         s += retType + " " + funName + "(" + args + ")"
@@ -404,7 +392,7 @@ class BaseCodeGenerator:
     def makeClassMemberList(self,structt):
         return self.makeFieldListGeneric(structt,True, seperator = ";\n  " , inclParent = False , inclConst = True )
     def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False ):
-        """ Flexible generation of variable/argument list 
+        """ Flexible generation of varable list 
         """
         fields    = structt["body"]
         s = ""
@@ -427,7 +415,7 @@ class BaseCodeGenerator:
             arrLen = f.get("arrLen",None)    
             if inclTypes:
                 #s += self.genVarDecl(f["type"] , f["name"],arrLen ) + seperator
-                s += self.genVarDecl(f, inclArrLen =False, termstr = seperator ) 
+                s += self.genVarDecl(f, seperator ) 
             else: 
                 s += self.genVarOnlyDecl(f["type"] , f["name"],arrLen ) + seperator
         return s[:-len(seperator)]         
@@ -516,7 +504,7 @@ class BaseCodeGenerator:
             parentArgs    = self.genTypedArg(parentStruct) +", "
         # in some cased the dest buffer should also be passed as argument
         if copyToBuff:
-            funName   = self.funcPackBaseName + structnme.capitalize()
+            funName   = self.funcPackBuffPrefix + structnme.capitalize()
             s  = self.intTypeName +" "+ funName +"(" + parentArgs
             s += self.genVarOnlyDecl(self.packBuffType,self.packBuffName,0) + ","
             s += self.genVarOnlyDecl(self.intTypeName, "pos") + "," 
@@ -537,7 +525,7 @@ class BaseCodeGenerator:
         #    s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small"
         if "parentName" in struct:
             # fill in the inherited data from the parent
-            s += "    pos = " +self.funcPackBaseName + struct["parentName"].capitalize() 
+            s += "    pos = " +self.funcPackBuffPrefix + struct["parentName"].capitalize() 
             s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
         s += self.genPackFields(struct)
         if not copyToBuff:
@@ -548,7 +536,7 @@ class BaseCodeGenerator:
         s += "} // end "+ funName + "\n"
         return s
 
-    def genPackFun(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
+    def genPackFun(self,structt,copyToBuff=True,msgIdArg = False):
         structnme     = structt["name"]
         fields        = structt["body"]
         parentArgs    = ""
@@ -560,24 +548,20 @@ class BaseCodeGenerator:
         #     parentArgs    = self.genTypedArg(parentStruct) +", "
         # in some cased the dest buffer should also be passed as argument
         if copyToBuff:
-            args = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" pos, "
-            #args = self.makeDeclFunArgList(structt)
-            # s    = self.makeFunName(structt,self.intTypeName,self.funcPackBaseName,args)
+            args = self.makeDeclFunArgList(structt)
+            s    = self.makeFunName(structt,self.intTypeName,self.funcPackBuffPrefix,args)
             # s  = self.intTypeName +" "+ funName +"(" + parentArgs
             # s += self.makeDeclFunArgList(structt)
-            #funName   = self.funcPackBaseName + structnme.capitalize()
+            #funName   = self.funcPackBuffPrefix + structnme.capitalize()
             # s  = self.intTypeName +" "+ funName +"(" + parentArgs
             # s += self.genVarOnlyDecl(self.packBuffType,self.packBuffName,0) + ","
             # s += self.genVarOnlyDecl(self.intTypeName, "pos") + "," 
-        # else:
-        #     funName   = self.funcPackCallPrefix + structnme.capitalize()
-        #     s  = self.intTypeName +" "+ funName +"(" + parentArgs
-        else: args = ""
-        args += self.makeDeclFunArgList(structt)
-        s     = self.makeFunName(structt,self.intTypeName,namePrefix+self.funcPackBaseName,args)
+        else:
+            funName   = self.funcPackCallPrefix + structnme.capitalize()
+            s  = self.intTypeName +" "+ funName +"(" + parentArgs
         #s += self.packBuffType+" "+self.packBuffName+","+self.intTypeName +" pos, "
-        #s += self.genTypedArg(fields) +")\n"
-        s += "\n{\n"
+        s += self.genTypedArg(fields) +")\n"
+        s += "{\n"
         (structLen,__) = self.genPackLenCalc(structt)
         s += "    const "+self.intTypeName +" "+self.packBuffName+"Len = " + structLen
         #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
@@ -585,28 +569,23 @@ class BaseCodeGenerator:
         if not copyToBuff:
             s += "          "+self.intTypeName +" pos    = 0;\n"
             s += "    uint8_t   "+self.packBuffName+"["+self.packBuffName+"Len];\n"
-    #s += self.makeClassMemberList(structt)
-        else:
-            s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small\n"
+        #else:
+        #    s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small"
         if "parentName" in structt:
             # fill in the inherited data from the parent
-            prn           = structt["parentName"]
-            parentStruct  = structDict[prn]
-            #parentStruct  = parentStruct["body"]
-            s += self.genPackFields(parentStruct)
-            #parentArgs    = self.genTypedArg(parentStruct) +", "            s += "    pos = " +self.funcPackBaseName + structt["parentName"].capitalize() 
-            #s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
+            s += "    pos = " +self.funcPackBuffPrefix + structt["parentName"].capitalize() 
+            s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
         s += self.genPackFields(structt)
         if not copyToBuff:
             s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
             s += ", pos);\n"
         else:
             s += "    return  pos;\n"
-        s += "\n} // end\n"
+        s += "} // end\n"
         return s
 
 
-    def genVarDecl(self,sfield,inclArrLen =False, termstr = ";"):
+    def genVarDecl(self,sfield, termstr = ";"):
         if not "type" in sfield:
             return "" 
         vtype = sfield["type"]
@@ -615,11 +594,8 @@ class BaseCodeGenerator:
             s = self.lookupType(vtype) +" "+vname+"["+sfield["type"]+"]"
         else:  
             s = self.lookupType(vtype) +" "+vname
-        if 'arrLen' in sfield:
-            if inclArrLen:  
-                s = s +"["+sfield['arrLen']+"]"
-            else:
-                s = s +"[]"
+        if 'arrLen' in sfield: 
+            s = s +"["+sfield['arrLen']+"]"
         if 'value' in sfield:
           s = s + " = " +  sfield["value"]
         s = s + termstr   

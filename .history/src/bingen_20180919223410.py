@@ -62,7 +62,7 @@ xxINT        = Regex(r"[+-]?\d+")
 
 EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*")("expr")
 
-LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
+LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP = map(Suppress,"{}[]()=;:@.")
 
 #kwds = """message required optional repeated enum extensions extends extend 
 #          to package service rpc returns true false option import"""
@@ -82,10 +82,7 @@ structtBody         = Forward()
 ###structDefn          = CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident)("baseName") + LBRACE + structtBody("body") + RBRACE
 ####structDefn          = (CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #####structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) +Optional(AT+IDENT + EQ + ANNOTSTR("anno")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-structDecl          = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
-structAnnotations   = Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)
-structDefn          = (structDecl + structAnnotations + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-#######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
+structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 
 #typespec = oneOf("""double float int32 int64 uint32 uint64 sint32 sint64 
 #                    fixed32 fixed64 sfixed32 sfixed64 bool string bytes""") | ident
@@ -202,7 +199,7 @@ struct GGheader
     */
   uint8     dest;   // Alt dest comment
   MSGID16   mM; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
-  uint16    msg_id = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
+  uint16    mid = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
   CRC16     CalcCrc16[dest:msgid];  //  CRC16     CalcCrc16(dest..msgid); 
 }  
 
@@ -218,8 +215,7 @@ enum Gender {
   Line 2 of comment
 */
 struct SetProfile headedby GGheader 
-@CC=56
-<MSG_ID = 0x1155>
+@MSG_ID = 0x1155
 { 
   int32 id = 1;      // the user identificatin number
   char[20]  surname; // the user surname
@@ -560,7 +556,7 @@ class BaseCodeGenerator:
         #     parentArgs    = self.genTypedArg(parentStruct) +", "
         # in some cased the dest buffer should also be passed as argument
         if copyToBuff:
-            args = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" pos, "
+            args = self.packBuffName+","+self.intTypeName +" pos, "
             #args = self.makeDeclFunArgList(structt)
             # s    = self.makeFunName(structt,self.intTypeName,self.funcPackBaseName,args)
             # s  = self.intTypeName +" "+ funName +"(" + parentArgs

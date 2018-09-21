@@ -84,11 +84,10 @@ structtBody         = Forward()
 #####structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) +Optional(AT+IDENT + EQ + ANNOTSTR("anno")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 structDecl          = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
 #structAnnotations   = ZeroOrMore(AT+IDENT("annoName") + EQ + INT("annoValue")) +  ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)
-structAnno          = ZeroOrMore(AT+Group(IDENT("annoName") + EQ + INT("annoValue")))
-#structLocals        = Group(ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER))("localConst")
-structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + INT("value")) + LARGER)
-structAdds          = structAnno("anno") + structLocals("localConst")
-structDefn          = (structDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
+structAnno          = Group(ZeroOrMore(AT+IDENT("annoName") + EQ + INT("annoValue")))("anno")
+structLocals        = ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)("localConst")
+structAnnotations   = structAnno + structLocals
+structDefn          = (structDecl + structAnnotations + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 
 #typespec = oneOf("""double float int32 int64 uint32 uint64 sint32 sint64 
@@ -291,11 +290,7 @@ def cleanstr(s):
     return s.replace("\n", " ")
 
 def addIndent(s):
-    if s.find("\n") < 2:  # start with new line
-        return s.replace("\n", "\n   ")
-    s = "    " + s.replace("\n", "\n   ")
-    return s
-    
+    return s.replace("\n", "\n   ")
 
 
 
@@ -341,12 +336,6 @@ class BaseCodeGenerator:
         if not "parentName" in structt: return None 
         parnt = structt["parentName"]
         return structDict[parnt]  
-    def makeConsVarDecl(self,varType,varName,varVal):
-        #tt = self.lookupType(varType)
-        return "static const " + varType + " "+varName  + " = ("+varType+") ("+varVal+  ");"
-    def makeVarDecl(self,varType,varName,arrayLen = None):
-        return genVarOnlyDecl(self,varType,varName,arrayLen = None)
-
     def genVarOnlyDecl(self,varType,varName,arrayLen = None):
         ''' Generate variable declaration of the given type.
             If an array size given it will be declared as an 
@@ -477,11 +466,7 @@ class BaseCodeGenerator:
               p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
               p2,fnd2 = self.genPackFieldPosCalc(structt,f['rangeEnd'],True)
               s += "    int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.packBuffName+", "+p1 + "," + p2 + ");\n" 
-            #-- check if it is assigned a value
-            if "value" in f:
-                s += "    // this is a fixed assigned field\n"
-                #s += "    " + f["name"] +" = " + f["value"] +";\n" 
-                s += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
+
             s += "    " + self.genPackFieldCode(f) 
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
@@ -523,49 +508,49 @@ class BaseCodeGenerator:
             return eqs,False
         ll = eval(eqs)
         return ll,True
-    # def xxgenPackFun(self,struct,copyToBuff=True,msgIdArg = False):
-    #     structnme     = struct["name"]
-    #     fields        = struct["body"]
-    #     parentArgs    = ""
-    #     # the parent arguments should also be send 
-    #     if "parentName" in struct:
-    #         prn           = struct["parentName"]
-    #         parentStruct  = structDict[prn]
-    #         parentStruct  = parentStruct["body"]
-    #         parentArgs    = self.genTypedArg(parentStruct) +", "
-    #     # in some cases the dest buffer should also be passed as argument
-    #     if copyToBuff:
-    #         funName   = self.funcPackBaseName + structnme.capitalize()
-    #         s  = self.intTypeName +" "+ funName +"(" + parentArgs
-    #         s += self.genVarOnlyDecl(self.packBuffType,self.packBuffName,0) + ","
-    #         s += self.genVarOnlyDecl(self.intTypeName, "pos") + "," 
-    #     else:
-    #         funName   = self.funcPackCallPrefix + structnme.capitalize()
-    #         s  = self.intTypeName +" "+ funName +"(" + parentArgs
-    #     #s += self.packBuffType+" "+self.packBuffName+","+self.intTypeName +" pos, "
-    #     s += self.genTypedArg(fields) +")\n"
-    #     s += "{\n"
-    #     (structLen,_) = self.genPackLenCalc(struct)
-    #     s += "    const "+self.intTypeName +" "+self.packBuffName+"Len = " + structLen
-    #     #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
-    #     s += ";\n"
-    #     if not copyToBuff:
-    #         s += "          "+self.intTypeName +" pos    = 0;\n"
-    #         s += "    uint8_t   "+self.packBuffName+"["+self.packBuffName+"Len];\n"
-    #     #else:
-    #     #    s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small"
-    #     if "parentName" in struct:
-    #         # fill in the inherited data from the parent
-    #         s += "    pos = " +self.funcPackBaseName + struct["parentName"].capitalize() 
-    #         s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
-    #     s += self.genPackFields(struct)
-    #     if not copyToBuff:
-    #         s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
-    #         s += ", pos);\n"
-    #     else:
-    #         s += "    return  pos;\n"
-    #     s += "} // end "+ funName + "\n"
-    #     return s
+    def xxgenPackFun(self,struct,copyToBuff=True,msgIdArg = False):
+        structnme     = struct["name"]
+        fields        = struct["body"]
+        parentArgs    = ""
+        # the parent arguments should also be send 
+        if "parentName" in struct:
+            prn           = struct["parentName"]
+            parentStruct  = structDict[prn]
+            parentStruct  = parentStruct["body"]
+            parentArgs    = self.genTypedArg(parentStruct) +", "
+        # in some cased the dest buffer should also be passed as argument
+        if copyToBuff:
+            funName   = self.funcPackBaseName + structnme.capitalize()
+            s  = self.intTypeName +" "+ funName +"(" + parentArgs
+            s += self.genVarOnlyDecl(self.packBuffType,self.packBuffName,0) + ","
+            s += self.genVarOnlyDecl(self.intTypeName, "pos") + "," 
+        else:
+            funName   = self.funcPackCallPrefix + structnme.capitalize()
+            s  = self.intTypeName +" "+ funName +"(" + parentArgs
+        #s += self.packBuffType+" "+self.packBuffName+","+self.intTypeName +" pos, "
+        s += self.genTypedArg(fields) +")\n"
+        s += "{\n"
+        (structLen,_) = self.genPackLenCalc(struct)
+        s += "    const "+self.intTypeName +" "+self.packBuffName+"Len = " + structLen
+        #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
+        s += ";\n"
+        if not copyToBuff:
+            s += "          "+self.intTypeName +" pos    = 0;\n"
+            s += "    uint8_t   "+self.packBuffName+"["+self.packBuffName+"Len];\n"
+        #else:
+        #    s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small"
+        if "parentName" in struct:
+            # fill in the inherited data from the parent
+            s += "    pos = " +self.funcPackBaseName + struct["parentName"].capitalize() 
+            s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
+        s += self.genPackFields(struct)
+        if not copyToBuff:
+            s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
+            s += ", pos);\n"
+        else:
+            s += "    return  pos;\n"
+        s += "} // end "+ funName + "\n"
+        return s
 
     def genPackFun(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
         structnme     = structt["name"]
@@ -578,8 +563,6 @@ class BaseCodeGenerator:
         #     parentStruct  = parentStruct["body"]
         #     parentArgs    = self.genTypedArg(parentStruct) +", "
         # in some cased the dest buffer should also be passed as argument
-
-        #-- build the argument list for the function
         if copyToBuff:
             args = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" pos, "
             #args = self.makeDeclFunArgList(structt)
@@ -595,15 +578,10 @@ class BaseCodeGenerator:
         #     s  = self.intTypeName +" "+ funName +"(" + parentArgs
         else: args = ""
         args += self.makeDeclFunArgList(structt)
-        #-- build the function call
         s     = self.makeFunName(structt,self.intTypeName,namePrefix+self.funcPackBaseName,args)
+        #s += self.packBuffType+" "+self.packBuffName+","+self.intTypeName +" pos, "
+        #s += self.genTypedArg(fields) +")\n"
         s += "\n{\n"
-        #-- generate constant declaraions for the struct local constant assignments
-        locConst = structt.get("localConst",[])    
-        for itm in locConst:
-            s1 = (self.makeConsVarDecl(self.intTypeName,itm["name"],itm["value"]))
-            s +=  "    "+ (s1) +"\n"
-        #-- calculate the length of the data
         (structLen,__) = self.genPackLenCalc(structt)
         s += "    const "+self.intTypeName +" "+self.packBuffName+"Len = " + structLen
         #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
@@ -622,10 +600,6 @@ class BaseCodeGenerator:
             s += self.genPackFields(parentStruct)
             #parentArgs    = self.genTypedArg(parentStruct) +", "            s += "    pos = " +self.funcPackBaseName + structt["parentName"].capitalize() 
             #s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
-
-        # for name,val in locConst.items():
-        #     s += self.makeConsVarDecl("int",name,value)
-        #-- build the assignment of the data fields to the buffer
         s += self.genPackFields(structt)
         if not copyToBuff:
             s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName

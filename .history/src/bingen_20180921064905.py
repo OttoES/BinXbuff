@@ -343,7 +343,7 @@ class BaseCodeGenerator:
         return structDict[parnt]  
     def makeConsVarDecl(self,varType,varName,varVal):
         #tt = self.lookupType(varType)
-        return "static const " + varType + " "+varName  + " = ("+varType+") ("+varVal+  ");"
+        return "static const " + varType + " "+varName  + " = "+varVal+  ";"
     def makeVarDecl(self,varType,varName,arrayLen = None):
         return genVarOnlyDecl(self,varType,varName,arrayLen = None)
 

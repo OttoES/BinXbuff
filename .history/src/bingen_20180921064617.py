@@ -343,7 +343,7 @@ class BaseCodeGenerator:
         return structDict[parnt]  
     def makeConsVarDecl(self,varType,varName,varVal):
         #tt = self.lookupType(varType)
-        return "static const " + varType + " "+varName  + " = ("+varType+") ("+varVal+  ");"
+        return "static const " + varType + " "+varName  + " = "+varVal+  ";"
     def makeVarDecl(self,varType,varName,arrayLen = None):
         return genVarOnlyDecl(self,varType,varName,arrayLen = None)
 
@@ -480,8 +480,7 @@ class BaseCodeGenerator:
             #-- check if it is assigned a value
             if "value" in f:
                 s += "    // this is a fixed assigned field\n"
-                #s += "    " + f["name"] +" = " + f["value"] +";\n" 
-                s += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
+                s += "    " + f["name"] +" = " + f["value"] +";\n" 
             s += "    " + self.genPackFieldCode(f) 
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"

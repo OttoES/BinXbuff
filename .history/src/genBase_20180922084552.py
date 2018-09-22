@@ -766,9 +766,6 @@ struct MsgHeader
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
-@CC=56
-@CV=542
-<CMD_ID = 0x15>  <ARRLEN = 10>
 {
       
     enum8 read_t   subCmd ;         // 

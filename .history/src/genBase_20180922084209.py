@@ -768,7 +768,8 @@ struct MsgHeader
 struct ReadMsg headedby MsgHeader
 @CC=56
 @CV=542
-<CMD_ID = 0x15>  <ARRLEN = 10>
+<MSG_ID = 0x1155>  <ARRLEN = 10>
+<CMD_ID = CMD_READ>
 {
       
     enum8 read_t   subCmd ;         // 

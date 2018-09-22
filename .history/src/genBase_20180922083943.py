@@ -766,12 +766,10 @@ struct MsgHeader
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
-@CC=56
-@CV=542
-<CMD_ID = 0x15>  <ARRLEN = 10>
+<CMD_ID = CMD_READ>
 {
       
-    enum8 read_t   subCmd ;         // 
+    enum8 read_t   subCmd;         // 
     uint16         len    = 0;     // no data send with this message
     /*
       A sequence number assosiated with this message and returned 

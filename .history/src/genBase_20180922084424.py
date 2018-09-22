@@ -768,17 +768,10 @@ struct MsgHeader
 struct ReadMsg headedby MsgHeader
 @CC=56
 @CV=542
-<CMD_ID = 0x15>  <ARRLEN = 10>
+<MSG_ID = 0x1155>  <ARRLEN = 10>
+<CMD_ID = CMD_READ>
 {
-      
-    enum8 read_t   subCmd ;         // 
-    uint16         len    = 0;     // no data send with this message
-    /*
-      A sequence number assosiated with this message and returned 
-      by the CMD_READ_ACK
-    */
-    uint16         seqNr;       // crc use for integrity checking
-    CRC16          crc16[destAddr:seqNr]; 
+     
 }
 
 enum Gender {

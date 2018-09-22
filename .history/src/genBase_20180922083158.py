@@ -43,7 +43,7 @@ class BaseCodeGenerator:
     intTypeName         = "int "
     typeTable1          = {"bool":"bool","enum8":"uint8_t","char":"char"}
     typeTable2          = {"string":"char","zstring":"char","ustring":"wchar","uzstring":"wchar"}
-    # these types are internally generated and not passed in by the user  
+    # these types are internally generated andnot passed in by the user  
     typeTableLoc        = {"CRC8":"uint8","CRC16":"uint16","CRC32":"uin32","MSG_ID16":"uint16"}
     typeSizeTable       = {"char":1,"bool":1,"wchar":2,"byte":1}
     packBuffName        = "buff"  
@@ -705,9 +705,9 @@ GGcomsDef = """
 @name       =  "GGCommsDefinition"
 @version    =  "1.0-0"
 @doc_title  =  "Greatguide Communications Protocol Definition"
-@doc_header =  "BXB definition document"
+@doc_header =  "BXB definition documen"
 @doc_intro  =  '''This is the definiton of the message protocol
-                  used between the seat units and the master streamer'''
+                  used between the seat unts and the master streamer'''
 
 @c_includes =  '''
 #include <stdio.h>
@@ -724,7 +724,7 @@ void testfun(void)
 /* These are the main commands.
 */
 enum cmd_t { 
-    CMD_BROADCAST      = 0x0A;  // All messages using this tag will be broadcasted to all addresses, e.g. audio files 
+    CMD_BROADCAST      = 0x0A;  // Broadcast 
     CMD_BROADCAST_ACK  = 0x03;  // An ackowladge if the broadcast command was sucessfull 
     CMD_READ           = 0x15;
     CMD_READ_ACK       = 0x16;
@@ -766,19 +766,17 @@ struct MsgHeader
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
-@CC=56
-@CV=542
-<CMD_ID = 0x15>  <ARRLEN = 10>
+<CMD_ID = CMD_READ>
 {
       
-    enum8 read_t   subCmd ;         // 
+    enum8 read_t   subCmd;         // 
     uint16         len    = 0;     // no data send with this message
     /*
       A sequence number assosiated with this message and returned 
       by the CMD_READ_ACK
     */
-    uint16         seqNr;       // crc use for integrity checking
-    CRC16          crc16[destAddr:seqNr]; 
+    uint16         seqNr;       
+    CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
 }
 
 enum Gender {

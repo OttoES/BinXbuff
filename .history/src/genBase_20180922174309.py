@@ -1,287 +1,9 @@
-# protobuf_parser.py
-#
-#  simple parser for parsing protobuf .proto files
-#
-#  Copyright 2010, Paul McGuire
-#  Modified  2018,  otto    
-#
-from pprint import pprint
-
-from pyparsing import (Word, alphas, alphanums, Regex, Suppress, Forward,
-    Group, oneOf, ZeroOrMore, Optional, delimitedList, Keyword, cStyleComment, cppStyleComment,
-    restOfLine, quotedString,QuotedString, Dict)
-
-
-enumList     = []
-structList   = []
-structDict   = {}
-headerList   = {}
-annotateDict = {}
-
-def addStructToList(structt):
-    sdict = structt.asDict()
-    structList.append(sdict)
-    structDict[sdict["name"]] = sdict
- 
-
-def addEnumToList(enumm):
-    #print("\n==========")
-    #print(enumm.asDict())
-    enumList.append(enumm.asDict())
-
-def addToHeaderDict(headerName,structt):
-    headerList[headerName] = structt.asDict()
-
-def addToAnnotationDict(annotateName,annotate):
-    s = annotate[1]
-    # first remove the quotes
-    if s.startswith("'''"):  s = s[3:-3]
-    if s.startswith('"'):  s = s[1:-1]
-    annotateDict[annotate['name']] = s
-
-
-comment       = '## ' + restOfLine
-#comment       = '#' + restOfLine
-CMNT          = Optional(cStyleComment("comment"))
-CMNT2         = Optional( (Suppress('//') + restOfLine("comment2")) )  #Optional(cppStyleComment("comment2"))
-STRQ3         = QuotedString("'''", multiline=True)
-ANNOTSTR      = ( QuotedString("'''", multiline=True) | quotedString )
-#IDENTIFIER = Regex(r'[a-zA-Z_][a-zA-Z_0-9]*')
-#INTEGER    = Regex(r'([+-]?(([1-9][0-9]*)|0+))')
-#IDENTIFIER       = Word(alphas+"_", alphas+nums+"_" )
-INT_DECI   = Regex('([+-]?(([1-9][0-9]*)|0+))')
-INT_OCT    = Regex('(0[0-7]*)')
-INT_HEX    = Regex('(0[xX][0-9a-fA-F]*)')
-INT        = INT_HEX | INT_OCT | INT_DECI
-FLOAT      = Regex('[+-]?(((\d+\.\d*)|(\d*\.\d+))([eE][-+]?\d+)?)|(\d*[eE][+-]?\d+)')
-SIZE       = INT
-#VARNAME    = IDENTIFIER
-##ident = Word(alphas+"_",alphanums+"_").setName("identifier")
-IDENT      = Word(alphas+"_",alphanums+"_")("name")
-xxINT        = Regex(r"[+-]?\d+")
-
-EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*")("expr")
-
-LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
-
-#kwds = """message required optional repeated enum extensions extends extend 
-#          to package service rpc returns true false option import"""
-
-kwds = """struct enum headedby 
-          extensions extends extend 
-          required optional array
-          true false option import"""
-
-for kw in kwds.split():
-    exec("{}_ = Keyword('{}')".format(kw.upper(), kw))
-
-structtBody         = Forward()
-
-#structDefn          = Optional(CMNT("comment")) + STRUCT_ - ident("structName") + LBRACE + structtBody("body") + RBRACE
-##structDefn          = CMNT + STRUCT_ - ident("structName") + LBRACE + structtBody("body") + RBRACE
-###structDefn          = CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident)("baseName") + LBRACE + structtBody("body") + RBRACE
-####structDefn          = (CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-#####structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) +Optional(AT+IDENT + EQ + ANNOTSTR("anno")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-structDecl          = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
-#structAnnotations   = ZeroOrMore(AT+IDENT("annoName") + EQ + INT("annoValue")) +  ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)
-##structAnno          = ZeroOrMore(AT+Group(IDENT("annoName") + EQ + (INT("annoValue") | IDENT("annoExpr") ) ) )
-structAnno          = ZeroOrMore(AT+Group(IDENT("annoName") + EQ + (INT | IDENT)("annoExpr")  ) )
-#structLocals        = Group(ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER))("localConst")
-structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + EXPR("value")) + LARGER)
-structAdds          = structAnno("anno") + structLocals("localConst")
-structDefn          = (structDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-#######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-
-#typespec = oneOf("""double float int32 int64 uint32 uint64 sint32 sint64 
-#                    fixed32 fixed64 sfixed32 sfixed64 bool string bytes""") | ident
-typespec            = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char wchar string zstring bytes enum8 enum16 enum32 TAG8 TAG16 """) | IDENT
-##typespec            = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char string zstring bytes enum8 enum16 enum32 """)
-
-typeint             = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char wchar byte""")
-typestr             = oneOf("""string zstring ustring zustring""")
-typeenum            = oneOf("""enum8 enum16 enum32""")
-typetag             = oneOf("""TAG8 TAG16 TAG32 MSGID8 MSGID16""")
-typeres             = oneOf("""STRUCTLEN8 STRUCTLEN16 CRC8 CRC16 CRC32""")
-
-
-#typespec            =  typestd | typetag | typeres | ident
-
-fieldtag            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
-fieldint            = typeint("type")  + Optional(LBRACK + EXPR("arrLen") + RBRACK)  + IDENT + Optional(EQ + EXPR("value"))
-fieldstr            = typestr("type")  + IDENT + Optional(EQ + quotedString("value"))
-#fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
-fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
-fieldenum           = typeenum("type") + IDENT("enumName") + IDENT + Optional(EQ + IDENT("value"))
-fieldres            = typeres("type")  + IDENT + LBRACK + IDENT("rangeStart")+COLON+ IDENT("rangeEnd")+RBRACK
-#fieldres            = typeres("type")  + IDENT + LPAR + IDENT("rangeStart")+".."+ IDENT("rangeEnd")+RPAR
-
-fieldstruct         = IDENT("stype")   + IDENT
-
-rvalue              = INT | TRUE_ | FALSE_ | IDENT
-fieldDirective      = LBRACK + Group(IDENT("fid") + EQ + rvalue("fidval")) + RBRACK
-##fieldDefn           = (( REQUIRED_ | OPTIONAL_ | ARRAY_ )("fieldQualifier") - 
-##                      typespec("typespec") + ident("ident") + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI) + Optional(CMNT2("comment2"))
-###fieldDefn           = typespec("type") + ident + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI + Optional(CMNT2("comment2"))
-field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldtag | fieldres | fieldstruct 
-fieldDefn           = CMNT + field  + SEMI + Optional(CMNT2)
-
-# enumDefn        ::= 'enum' ident '{' { ident '=' integer ';' }* '}'
-##enumDefn            = CMNT + ENUM_("typespec") - ident('name') +  LBRACE + Dict( ZeroOrMore( Group(ident("name") + EQ + integer("value") + SEMI + CMNT2 ) ))('values') + RBRACE
-#enumInline          = (LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
-##enumDefn            = (CMNT + ENUM_("type") - IDENT +  LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
-###enumDefn            = (CMNT + ENUM_("type") + IDENT +  LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
-enumDefn            = (CMNT + ENUM_("type") + IDENT("enumName") +  LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
-
-# extensionsDefn ::= 'extensions' integer 'to' integer ';'
-##extensionsDefn = EXTENSIONS_ - integer + TO_ + integer + SEMI
-
-# structExtension ::= 'extend' ident '{' messageBody '}'
-####structExtension     = Optional(CMNT("comment")) + EXTEND_ - ident + LBRACE + structtBody + RBRACE
-###structExtension     = CMNT + ident + EXTEND_ + ident("baseName") + LBRACE + structtBody + RBRACE
-
-# messageBody     ::= { fieldDefn | enumDefn | structDefn | extensionsDefn | structExtension }*
-##messageBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn | extensionsDefn | structExtension) ))
-###structtBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn | structExtension) ))
-structtBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn ) ))
-
-# methodDefn ::= 'rpc' ident '(' [ ident ] ')' 'returns' '(' [ ident ] ')' ';'
-# methodDefn = (RPC_ - ident("methodName") + 
-#               LPAR + Optional(ident("methodParam")) + RPAR + 
-#               RETURNS_ + LPAR + Optional(ident("methodReturn")) + RPAR)
-
-# serviceDefn ::= 'service' ident '{' methodDefn* '}'
-##serviceDefn = SERVICE_ - ident("serviceName") + LBRACE + ZeroOrMore(Group(methodDefn)) + RBRACE
-
-# packageDirective ::= 'package' ident [ '.' ident]* ';'
-##packageDirective = Group(PACKAGE_ - delimitedList(ident, '.', combine=True) + SEMI)
-
-
-
-importDirective = IMPORT_ - quotedString("importFileSpec") + SEMI
-
-optionDirective = OPTION_ - IDENT("optionName") + EQ + quotedString("optionValue") + SEMI
-
-
-#annotateDef     = AT + (IDENT + EQ + (quotedString | STRQ3)).setParseAction(addToAnnotationDict)
-annotateDef     = AT + (IDENT + EQ + ANNOTSTR).setParseAction(addToAnnotationDict)
-
-#topLevelStatement = Group(structDefn | structExtension | enumDefn | serviceDefn | importDirective | optionDirective)
-##topLevelStatement = Group(structDefn | structExtension | enumDefn | importDirective | optionDirective)
-topLevelStatement = Group(annotateDef | structDefn  | enumDefn | importDirective | optionDirective)
-
-##parser = Optional(packageDirective) + ZeroOrMore(topLevelStatement)
-#parser = Group(CMNT) + ZeroOrMore(topLevelStatement)
-parser = ZeroOrMore(topLevelStatement)
-
-parser.ignore(comment)
-
-
-test1 = """
-@name       =  "Test BBX"
-@version    =  "0.1-4"
-@doc_title  =  "BBX document"
-@doc_header =  "BBX document heading generation Testing"
-@doc_intro  =  '''This is the definiton of the message protocol
-                  used for bla-bla-bla'''
-
-@c_includes =  '''
-#include <stdio.h>
-#include "comms.h"
-'''
-
-@c_code = '''
-void testfun(void)
-{
-   dosomething();
-} // end test
-'''
-
-/* 
- This is the common header for everybody.
-*/
-struct GGheader
-{
-    /* This is to test a very long comment line. 
-       The destination is where the message should be send to.
-       Each device should be allocated a fixed address.
-    */
-  uint8     dest;   // Alt dest comment
-  MSGID16   mM; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
-  uint16    msg_id = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
-  CRC16     CalcCrc16[dest:msgid];  //  CRC16     CalcCrc16(dest..msgid); 
-}  
-
-enum Gender {
-    UNKNOWN = 0;    
-    MALE    = 1;   // set as male
-    FEMLE   = 0x2;   // set as female
-    OTHER   = 0x3;   // if a person identifies with a different gender 
-}
-
-/*
-  This is the message to set the user profile.
-  Line 2 of comment
-*/
-struct SetProfile headedby GGheader 
-@CC=56
-@CV=542
-<MSG_ID = 0x1155>  <ARRLEN = 10>
-{ 
-  int32 id = 1;      // the user identificatin number
-  char[20]  surname; // the user surname
-  enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
-
-  enum8  Gender gender;
-  int8     dlen;
-  CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
-  char[dlen]    addit;
-  zstring email = "eeeeee"; 
-}"""
-
-test2 = """
-
-  enum Gender {
-    UNKNOWN = 0;    
-    MALE = 1;  // mmmjhjjj   j h hjjjj
-    FEMLE = 2;   // sdfds d d sdfdsfdssf 
-  }
-## package tutorial;
-
-struct Person {
-  string name = "gg";
-  int32 id = 2;     // not defined
-  string email = "emailll";
-  enum8 Gender gen;
-  /* enum comment */
-  enum PhoneType {
-    MOBILE = 0;
-    HOME = 1;  // xxx cccccccffffffffff nn
-    WORK = 2;
-  }
-
-  struct PhoneNumber {
-    string number = "3656354";
-    enum8  PhoneType ptype ; ## [default = HOME];
-  }
-
-  PhoneNumber phone;
-}
-/* 
- My comment
-*/
-struct AddressBook {
-  Person person;
-}
-
-struct Student extends Person {
-  int16   SN  = 1234;
-  int8    ghg = 23;
-  int16   nn    = 323;
-  zstring us = "hfhdhfdh"; 
-}
-
+""" Copyright OttoES 2018
 """
 
+from parseBinXbuff import (parser, enumList  , structList,structDict, headerList, annotateDict)
+
+from pprint import pprint
 
 
 def cleanstr(s):
@@ -297,7 +19,19 @@ def addIndent(s):
     s = "    " + s.replace("\n", "\n   ")
     return s
     
+def parseBxbDefFile(fileName):
+    parser.parseFile(fileName)
 
+def parseBxbDefStr(defStr):
+    parser.parseString(defStr)
+    docgen = MarkdownGenerator() 
+    s = docgen.genAll()
+    print(s)
+
+def ppprint():
+    pprint(enumList)
+    pprint(annotateDict)
+    pprint(structList)
 
 
 class BaseCodeGenerator:
@@ -314,13 +48,13 @@ class BaseCodeGenerator:
     intTypeName         = "int "
     typeTable1          = {"bool":"bool","enum8":"uint8_t","char":"char"}
     typeTable2          = {"string":"char","zstring":"char","ustring":"wchar","uzstring":"wchar"}
-    # these types are internally generated andnot passed in by the user  
+    # these types are internally generated and not passed in by the user  
     typeTableLoc        = {"CRC8":"uint8","CRC16":"uint16","CRC32":"uin32","MSG_ID16":"uint16"}
     typeSizeTable       = {"char":1,"bool":1,"wchar":2,"byte":1}
     packBuffName        = "buff"  
     packBuffType        = "char"  
-    def __init__(self,bbxDef= None):
-        if bbxDef is not None:
+    def __init__(self,bxbDef= None):
+        if bxbDef is not None:
             pp = parser.parseString(bbxDef)
     def pprint(self):
         pprint(enumList)
@@ -524,49 +258,7 @@ class BaseCodeGenerator:
             return eqs,False
         ll = eval(eqs)
         return ll,True
-    # def xxgenPackFun(self,struct,copyToBuff=True,msgIdArg = False):
-    #     structnme     = struct["name"]
-    #     fields        = struct["body"]
-    #     parentArgs    = ""
-    #     # the parent arguments should also be send 
-    #     if "parentName" in struct:
-    #         prn           = struct["parentName"]
-    #         parentStruct  = structDict[prn]
-    #         parentStruct  = parentStruct["body"]
-    #         parentArgs    = self.genTypedArg(parentStruct) +", "
-    #     # in some cases the dest buffer should also be passed as argument
-    #     if copyToBuff:
-    #         funName   = self.funcPackBaseName + structnme.capitalize()
-    #         s  = self.intTypeName +" "+ funName +"(" + parentArgs
-    #         s += self.genVarOnlyDecl(self.packBuffType,self.packBuffName,0) + ","
-    #         s += self.genVarOnlyDecl(self.intTypeName, "pos") + "," 
-    #     else:
-    #         funName   = self.funcPackCallPrefix + structnme.capitalize()
-    #         s  = self.intTypeName +" "+ funName +"(" + parentArgs
-    #     #s += self.packBuffType+" "+self.packBuffName+","+self.intTypeName +" pos, "
-    #     s += self.genTypedArg(fields) +")\n"
-    #     s += "{\n"
-    #     (structLen,_) = self.genPackLenCalc(struct)
-    #     s += "    const "+self.intTypeName +" "+self.packBuffName+"Len = " + structLen
-    #     #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
-    #     s += ";\n"
-    #     if not copyToBuff:
-    #         s += "          "+self.intTypeName +" pos    = 0;\n"
-    #         s += "    uint8_t   "+self.packBuffName+"["+self.packBuffName+"Len];\n"
-    #     #else:
-    #     #    s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small"
-    #     if "parentName" in struct:
-    #         # fill in the inherited data from the parent
-    #         s += "    pos = " +self.funcPackBaseName + struct["parentName"].capitalize() 
-    #         s += "(" + self.packBuffName + ", pos, "+ self.genArg(parentStruct) +");\n"
-    #     s += self.genPackFields(struct)
-    #     if not copyToBuff:
-    #         s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
-    #         s += ", pos);\n"
-    #     else:
-    #         s += "    return  pos;\n"
-    #     s += "} // end "+ funName + "\n"
-    #     return s
+ 
 
     def genPackFun(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
         structnme     = structt["name"]
@@ -690,16 +382,6 @@ class BaseCodeGenerator:
 
 class OOcodeGenerator(BaseCodeGenerator):
     typeTable1      = {"bool":"bool","enum8":"uint8_t","char":"char","string":"String"}
-    #typeTable2           = {"string":"","zstring":"char","ustring":"wchar","uzstring":"wchar"}
-    #packageName     = "DefaultPackageName"
-    # def genClassDecl(self,structt):    
-    #     fields    = structt["body"]
-    #     ##fieldName = structt['name']
-    #     s = ""
-    #     s = "class "+structt["name"] 
-    #     if "parentName" in structt:
-    #         parnt = structt["parentName"]
-    #         parStruct = structDict[parnt]
     def genClassDeclBegin(self,structname,parentstruct= None):
         s = "class "+structname+" "
         if parentstruct is not None: 
@@ -793,6 +475,12 @@ class MarkdownGenerator(BaseCodeGenerator):
             s += m.H3 + st["name"] +"\n"
             if "comment" in st:
                 s += cleanstr(st["comment"]) +m.NLNL
+            if "localConst" in st:
+                s += "Structure value definitions " + m.NLNL
+                for loc in st["localConst"]:
+                    s += loc  + m.NLNL
+
+
             if "parentName" in st:
                 s += "Structure inherits all fields from " + m.BOLT
                 s += st["parentName"] + m.BOLT + " and add these" + m.BR
@@ -906,13 +594,198 @@ class OOpythonGenerator(OOcodeGenerator):
 # s = docgen.genAll()
 # print(s)
 
-pp = parser.parseString(test1)
-pygen = OOpythonGenerator()
-pygen.pprint()
-s = pygen.genAll()
-print(s)
-print("\n------------------------------\n\n")
-oogen = OOcodeGenerator()
-#oogen.pprint()
-s = oogen.genAll("test.hpp","test.cpp")
-print(s)
+
+test1 = """
+@name       =  "Test BBX"
+@version    =  "0.1-4"
+@doc_title  =  "BBX document"
+@doc_header =  "BBX document heading generation Testing"
+@doc_intro  =  '''This is the definiton of the message protocol
+                  used for bla-bla-bla'''
+
+@c_includes =  '''
+#include <stdio.h>
+#include "comms.h"
+'''
+
+@c_code = '''
+void testfun(void)
+{
+   dosomething();
+} // end test
+'''
+
+/* 
+ This is the common header for everybody.
+*/
+struct GGheader
+{
+    /* This is to test a very long comment line. 
+       The destination is where the message should be send to.
+       Each device should be allocated a fixed address.
+    */
+  uint8     dest;   // Alt dest comment
+  MSGID16   mM; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
+  uint16    msg_id = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
+  CRC16     CalcCrc16[dest:msgid];  //  CRC16     CalcCrc16(dest..msgid); 
+}  
+
+enum Gender {
+    UNKNOWN = 0;    
+    MALE    = 1;   // set as male
+    FEMLE   = 0x2;   // set as female
+    OTHER   = 0x3;   // if a person identifies with a different gender 
+}
+
+/*
+  This is the message to set the user profile.
+  Line 2 of comment
+*/
+struct SetProfile headedby GGheader 
+@CC=56
+@CV=542
+<MSG_ID = 0x1155>  <ARRLEN = 10>
+{ 
+  int32 id = 1;      // the user identificatin number
+  char[20]  surname; // the user surname
+  enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
+
+  enum8  Gender gender;
+  int8     dlen;
+  CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
+  char[dlen]    addit;
+  zstring email = "eeeeee"; 
+}"""
+
+
+
+
+GGcomsDef = """
+@name       =  "GGCommsDefinition"
+@version    =  "1.0-0"
+@doc_title  =  "Greatguide Communications Protocol Definition"
+@doc_header =  "BXB definition document"
+@doc_intro  =  '''This is the definiton of the message protocol
+                  used between the seat units and the master streamer'''
+
+@c_includes =  '''
+#include <stdio.h>
+#include "comms.h"
+'''
+
+@c_code = '''
+void testfun(void)
+{
+   dosomething();
+} // end test
+'''
+
+/* These are the main commands.
+*/
+enum cmd_t { 
+    CMD_BROADCAST      = 0x0A;  // All messages using this tag will be broadcasted to all addresses, e.g. audio files 
+    CMD_BROADCAST_ACK  = 0x03;  // An ackowladge if the broadcast command was sucessfull 
+    CMD_READ           = 0x15;
+    CMD_READ_ACK       = 0x16;
+    CMD_WRITE          = 0x29;
+    CMD_WRITE_ACK      = 0x30;  // Acknowladge send on a write
+    CMD_WR_SLAVE       = 0x3D;  // Not used: Reserved to be used to write to a single seat unit.
+    CMD_DEBUG          = 0x1A;  // Debug command only and should be ignored otherwise.
+    CMD_NACK           = 0x04;  // A negative ackowladge used if any command failed  
+    CMD_ACK_HEADER     = 0x05;  // An ackowladge used if the header was recieved withhout error.  
+    }
+
+
+/* 
+ This is the common header for all messages. 
+*/
+struct MsgHeader
+{
+    /* This is a magic number that indicates the start of the message */
+    uint32  magic = 0x900DBEEF;
+    /*
+       The destination address is where the message should be send to.
+       Devices are allocated a fixed address. The address for the master streamer 
+       is always 0. Seat units are each configured with ther own addresses.
+       Messages can be either directed to a single device or broadcasted 
+       depending on the command. If it is a broadcast command the destination
+       will still be for a spesific address and that address should send CMD_BROADCAST_ACK
+       acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error. 
+       When broadcasted the broadcast address 
+    */
+    uint8       destAddr;   
+    uint8       sourceAddr;         // The source address.
+    enum8 cmd_t    cmd    = CMD_ID; // This is the message identifier. 
+    
+}  
+
+/*
+  The read command reads information from the seat units, normally statistics 
+  and state changes. The seat unit should respond with a CMD_READ_ACK or 
+  CMD_NAC on failure.
+*/
+struct ReadMsg headedby MsgHeader
+@CC=56
+@CV=542
+<CMD_ID = 0x15>  <ARRLEN = 10>
+{
+      
+    enum8 read_t   subCmd ;         // 
+    uint16         len    = 0;     // no data send with this message
+    /*
+      A sequence number assosiated with this message and returned 
+      by the CMD_READ_ACK
+    */
+    uint16         seqNr;       // crc use for integrity checking
+    CRC16          crc16[destAddr:seqNr]; 
+}
+
+enum Gender {
+    UNKNOWN = 0;    
+    MALE    = 1;   // set as male
+    FEMLE   = 0x2;   // set as female
+    OTHER   = 0x3;   // if a person identifies with a different gender 
+}
+
+/*
+  This is the message to set the user profile.
+  Line 2 of comment
+*/
+struct SetProfile headedby MsgHeader 
+@CC=56
+@CV=542
+<MSG_ID = 0x1155>  <ARRLEN = 10>
+{ 
+  int32 id = 1;      // the user identificatin number
+  char[20]  surname; // the user surname
+  enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
+
+  enum8  Gender gender;
+  int8     dlen;
+  CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
+  char[dlen]    addit;
+  zstring email = "eeeeee"; 
+}"""
+
+def mainTest2():
+    parseBxbDefStr(GGcomsDef)
+    docgen = MarkdownGenerator() 
+    s = docgen.genAll()
+    print(s)
+
+
+def mainTest():
+    pp = parser.parseString(test1)
+    pygen = OOpythonGenerator()
+    pygen.pprint()
+    s = pygen.genAll()
+    print(s)
+    print("\n------------------------------\n\n")
+    oogen = OOcodeGenerator()
+    #oogen.pprint()
+    s = oogen.genAll("test.hpp","test.cpp")
+    print(s)
+
+if __name__ == "__main__":
+    # execute only if run as a script
+    mainTest2()

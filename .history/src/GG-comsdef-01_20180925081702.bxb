@@ -1,10 +1,9 @@
-GGcomsDef = """
 @name       =  "GGCommsDefinition"
-@version    =  "1.0-0"
+@version    =  "1.0-1"
 @doc_title  =  "Greatguide Communications Protocol Definition"
-@doc_header =  "BXB definition documen"
+@doc_header =  "BXB definition document"
 @doc_intro  =  '''This is the definiton of the message protocol
-                  used between the seat unts and the master streamer'''
+                  used between the seat units and the master streamer'''
 
 @c_includes =  '''
 #include <stdio.h>
@@ -19,8 +18,12 @@ void testfun(void)
 '''
 
 /* A list of all the commands. Note that all commands are send to a spesific 
-   address except the broadcast command. Most command have an acknowladge
-   except for he debug command.
+   address except the broadcast command. Most commands have an acknowladge
+   but note:
+   \n* each command have a paired acknowldge (ACK) command id
+   \n* there is only one not acknowladge (NAC) command shared by all commands 
+   \n* the debug command is not acknowladged
+   \n* a broadcast command is only acknowladced by one address
 */
 enum cmd_t { 
     CMD_BROADCAST      = 0x0A;  // Broadcast 
@@ -42,7 +45,7 @@ enum cmd_t {
 struct MsgHeader
 {
     /* This is a magic number that indicates the start of the message. */
-    uint32  magic = 0xEFBE0D90;   // This is the same as 0x900DBEEF in bigendian format
+    uint32  magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
     /*
        The destination address is where the message should be send to.
        Devices are allocated a fixed address. The address for the master streamer 
@@ -80,6 +83,36 @@ struct ReadMsg headedby MsgHeader
     CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
 }
 
+struct ReadMsgACK headedby MsgHeader
+<CMD_ID = x66> 
+<CMD_READ=0x16>
+{
+      
+    enum8 read_t   subCmd;         // 
+    uint16         len    = 8*listLen;     // no data send with this message
+    uint16         seqNr;       // A sequence number send with the request
+    CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
+    infoLog        log[10];                // normally
+    CRC16          crc16[log:log]; // crc use for integrity checking
+
+}
+
+enum  etype {
+    LOG_START = 1;
+    LOG_PLUGIN = 5;
+    LOG_PLUGOUT = 5;
+};
+
+
+struct infoLog
+{
+    enum8  etype etype;
+    uint8        seatNr;
+    uint8        seatLeftAux1;
+    uint8        seatRightAux1;
+    uint32       res;
+}
+
 enum Gender {
     UNKNOWN = 0;    
     MALE    = 1;   // set as male
@@ -105,35 +138,4 @@ struct SetProfile headedby MsgHeader
   CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
   char[dlen]    addit;
   zstring email = "eeeeee"; 
-}"""
-
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint)
-
-def mainTest():
-    pp = parseBxbDefStr(GGcomsDef)
-    ppprint()
-    docgen = MarkdownGenerator() 
-    s = docgen.genAll()
-    print(s)
-
-    # pygen = OOpythonGenerator()
-    # pygen.pprint()
-    # s = pygen.genAll()
-    # print(s)
-    # print("\n------------------------------\n\n")
-    # oogen = OOcodeGenerator()
-    # #oogen.pprint()
-    # s = oogen.genAll("test.hpp","test.cpp")
-    # print(s)
-
-def mainTest2():
-    pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")
-    ppprint()
-    docgen = MarkdownGenerator() 
-    s = docgen.genAll()
-    print(s)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    mainTest2()
+}

@@ -136,4 +136,4 @@ def mainTest2():
 
 if __name__ == "__main__":
     # execute only if run as a script
-    mainTest2()
+    mainTest()

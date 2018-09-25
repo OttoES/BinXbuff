@@ -66,7 +66,7 @@ struct MsgHeader
 */
 struct ReadMsg headedby MsgHeader
 @DD=55  @FF=44
-<CMD_ID = x66> 
+<CMD_ID = ERED> 
 <CMD_READ=6>
 {
       
@@ -107,7 +107,7 @@ struct SetProfile headedby MsgHeader
   zstring email = "eeeeee"; 
 }"""
 
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint)
+from genBase import (parseBxbDefStr,MarkdownGenerator,ppprint)
 
 def mainTest():
     pp = parseBxbDefStr(GGcomsDef)
@@ -126,14 +126,6 @@ def mainTest():
     # s = oogen.genAll("test.hpp","test.cpp")
     # print(s)
 
-def mainTest2():
-    pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")
-    ppprint()
-    docgen = MarkdownGenerator() 
-    s = docgen.genAll()
-    print(s)
-
-
 if __name__ == "__main__":
     # execute only if run as a script
-    mainTest2()
+    mainTest()

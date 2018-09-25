@@ -1,10 +1,11 @@
-GGcomsDef = """
+# Message definition for Greatguide
+
 @name       =  "GGCommsDefinition"
-@version    =  "1.0-0"
+@version    =  "1.0-1"
 @doc_title  =  "Greatguide Communications Protocol Definition"
-@doc_header =  "BXB definition documen"
+@doc_header =  "BXB definition document"
 @doc_intro  =  '''This is the definiton of the message protocol
-                  used between the seat unts and the master streamer'''
+                  used between the seat units and the master streamer'''
 
 @c_includes =  '''
 #include <stdio.h>
@@ -19,8 +20,12 @@ void testfun(void)
 '''
 
 /* A list of all the commands. Note that all commands are send to a spesific 
-   address except the broadcast command. Most command have an acknowladge
-   except for he debug command.
+   address except the broadcast command. Most commands have an acknowladge
+   but note:
+   * each command have a paired acknowldge command id
+   * there is oly one not acknowladge command shared by all commands 
+   * the debug command is not acknowladged
+   * a broadcast command is only acknowladced by one address
 */
 enum cmd_t { 
     CMD_BROADCAST      = 0x0A;  // Broadcast 
@@ -105,35 +110,3 @@ struct SetProfile headedby MsgHeader
   CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
   char[dlen]    addit;
   zstring email = "eeeeee"; 
-}"""
-
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint)
-
-def mainTest():
-    pp = parseBxbDefStr(GGcomsDef)
-    ppprint()
-    docgen = MarkdownGenerator() 
-    s = docgen.genAll()
-    print(s)
-
-    # pygen = OOpythonGenerator()
-    # pygen.pprint()
-    # s = pygen.genAll()
-    # print(s)
-    # print("\n------------------------------\n\n")
-    # oogen = OOcodeGenerator()
-    # #oogen.pprint()
-    # s = oogen.genAll("test.hpp","test.cpp")
-    # print(s)
-
-def mainTest2():
-    pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")
-    ppprint()
-    docgen = MarkdownGenerator() 
-    s = docgen.genAll()
-    print(s)
-
-
-if __name__ == "__main__":
-    # execute only if run as a script
-    mainTest2()

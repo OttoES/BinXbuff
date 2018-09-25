@@ -127,7 +127,7 @@ def mainTest():
     # print(s)
 
 def mainTest2():
-    pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")
+    pp = parseBxbDefFile("src/GG-comsdef-01.bxb")
     ppprint()
     docgen = MarkdownGenerator() 
     s = docgen.genAll()

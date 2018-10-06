@@ -60,7 +60,7 @@ SIZE       = INT
 IDENT      = Word(alphas+"_",alphanums+"_")("name")
 xxINT        = Regex(r"[+-]?\d+")
 
-EXPR = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
+EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " ")("expr")
 
 LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
 

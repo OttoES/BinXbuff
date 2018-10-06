@@ -1,4 +1,4 @@
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint,BaseCodeGenerator)
+from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint)
 
 
 def mainTest2():

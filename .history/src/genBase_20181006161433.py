@@ -171,7 +171,7 @@ class BaseCodeGenerator:
         return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = True )
     def makeClassMemberList(self,structt):
         return self.makeFieldListGeneric(structt,True, seperator = ";\n  " , inclParent = False , inclConst = True )
-    def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False, noLastSeparater = True ):
+    def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False ):
         """ Flexible generation of variable/argument list 
         """
         fields    = structt["body"]
@@ -199,9 +199,7 @@ class BaseCodeGenerator:
             else: 
                 #s += self.genVarOnlyDecl(f["type"] , f["name"],arrLen ) + seperator
                 s += f["name"] + seperator
-        if  noLastSeparater: 
-            return s[:-len(seperator)]
-        return s         
+        return s[:-len(seperator)]         
     def genPackFieldCode(self,f):
         tsize = self.lookupTypeSize(f["type"])
         if "arrLen" in f:  
@@ -424,12 +422,6 @@ class BaseCodeGenerator:
     def genProcessMsgDetail(self,structt):
         s  = "      // unpack each field into a variable\n"
         s += "      // call the (external user) defined function with the unpacked data\n"
-         #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False )
-        s1 = ""
-        for f in  structt["body"]:
-           s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n      ")
         s += "      "+ self.funcProcessFunPrefix + structt["name"] +"("
         s += self.makeCallFunArgListAll(structt)
         s += ");\n"
@@ -449,15 +441,13 @@ class BaseCodeGenerator:
 
     def genSelecAndProcessMsgFun(self,baseStructt):
         s  = "\n// This is the base message parser that should be called with\n// the byte array to be translated to a spesific message\n"
-        s  = "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
+        s  = "// First determine the struct/message type basedon MSG_ID and\n// MSG_COND and then unpack\n"
         #s += self.singletonFuncDecl + self.lenTypeName + " " + "parseMsg(uint8_t buff[],int len) \n{\n"
         s += self.makeFunName(baseStructt,self.lenTypeName,self.funcUnpackNamePrefix, "uint8_t buff[],int len",isSingletonFun=True) + "\n{\n"
         #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "   " + self.makeFieldListGeneric(baseStructt,inclTypes = True, seperator = ";\n   " , inclParent = False , inclConst = False,  noLastSeparater = False )
-        s1 = ""
+        s += "   " + self.makeFieldListGeneric(baseStructt,inclTypes = True, seperator = ";\n  " , inclParent = False , inclConst = False )
         for f in  baseStructt["body"]:
-           s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n   ")
+           s += self.genUnpackFieldCode(f)
         s += ";\n"
         for st in structList:
             if "localConst" in st:
@@ -475,15 +465,14 @@ class BaseCodeGenerator:
                     if 'expr' in itm:
                         s2 = "("+itm['expr']+")"
                 if len(s1)>1 and len(s2)>1:
-                    s3 = "   if ("+s1+" & "+s2+") {\n"
+                    s += "   if ("+s1+" & "+s2+") {\n"
                 else: 
-                    s3 = "   if "+s1+s2+" {    // "+ st["name"] + "\n"
+                    s += "   if "+s1+s2+" {    // "+ st["name"] + "\n"
                 if len(s1)>1 or len(s2)>1:
-                    s += s3+ self.genProcessMsgDetail(st)
+                    s += self.genProcessMsgDetail(st)
                     s += "   } else \n"
             #s += self.genPackFun( st) +"\n"
-        s += "   {\n      // error\n      "+self.errorHandlerName+'("Unknown message tag");\n   }\n'
-        s += "   return pos;\n"
+        s += "   {\n     // error\n      "+self.errorHandlerName+'("Unknown message tag");\n   }\n'
         s += "} // end\n"
         return s
 

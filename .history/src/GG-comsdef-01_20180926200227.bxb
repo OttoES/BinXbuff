@@ -31,7 +31,7 @@ enum cmd_t {
     CMD_BROADCAST      = 0x0A;  // Broadcast 
     CMD_BROADCAST_ACK  = 0x03;  // An acknowladge if the broadcast command was sucessfull 
     CMD_READ           = 0x15;
-    CMD_READ_REPLY     = 0x16;
+    CMD_READ_ACK       = 0x16;
     CMD_WRITE          = 0x29;
     CMD_WRITE_ACK      = 0x30;  // Acknowladge send on a write
     CMD_WR_SLAVE       = 0x3D;  // Not used: Reserved to be used to write to a single seat unit.
@@ -45,7 +45,6 @@ enum cmd_t {
  This is the common header for all messages. 
 */
 struct MsgHeader
-<MSG_BASE=TRUE>
 {
     /* This is a magic number that indicates the start of the message. */
     uint32  magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
@@ -63,7 +62,7 @@ struct MsgHeader
     uint8          sourceAddr;            // The source address.
     enum8 cmd_t    cmd    = CMD_ID;       // This is the message identifier. 
     uint8          subCmd;                //  
-    uint16         len    = MSG_LEN;      // the lenghth of he data 
+    uint16         len    = 8*listLen;     // he lenghth of he data 
     uint16         seqNr;                 // A sequence number send with the request
     CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
     
@@ -75,12 +74,9 @@ struct MsgHeader
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
-@C_PACK=1
-@C_UNPACK=1
 @DD=55  @FF=44
-<MSG_ID = CMD_READ> 
-<MSG_LEN=0>
-<IS_MSG = 0x55>
+<CMD_ID = x66> 
+<CMD_READ=6>
 {
       
     enum8 read_t   subCmd;         // 
@@ -93,10 +89,10 @@ struct ReadMsg headedby MsgHeader
     CRC16          crc16[destAddr:seqNr]; 
 }
 
-struct ReadMsgReply headedby MsgHeader
+struct ReadMsgACK headedby MsgHeader
 <CASE=44>
-<MSG_ID   = CMD_READ_REPLY> 
-<MSG_COND = (subCmd == DINFO_EVENT_LOG)  >
+<CMD_ID = x66> 
+<CMD_READ=0x16>
 {
       
     infoLog[10]    log;                // normally

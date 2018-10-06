@@ -424,12 +424,6 @@ class BaseCodeGenerator:
     def genProcessMsgDetail(self,structt):
         s  = "      // unpack each field into a variable\n"
         s += "      // call the (external user) defined function with the unpacked data\n"
-         #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False )
-        s1 = ""
-        for f in  structt["body"]:
-           s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n      ")
         s += "      "+ self.funcProcessFunPrefix + structt["name"] +"("
         s += self.makeCallFunArgListAll(structt)
         s += ");\n"
@@ -475,9 +469,9 @@ class BaseCodeGenerator:
                     if 'expr' in itm:
                         s2 = "("+itm['expr']+")"
                 if len(s1)>1 and len(s2)>1:
-                    s3 = "   if ("+s1+" & "+s2+") {\n"
+                    s3 += "   if ("+s1+" & "+s2+") {\n"
                 else: 
-                    s3 = "   if "+s1+s2+" {    // "+ st["name"] + "\n"
+                    s3 += "   if "+s1+s2+" {    // "+ st["name"] + "\n"
                 if len(s1)>1 or len(s2)>1:
                     s += s3+ self.genProcessMsgDetail(st)
                     s += "   } else \n"

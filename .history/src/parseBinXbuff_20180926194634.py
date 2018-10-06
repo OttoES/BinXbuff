@@ -60,7 +60,7 @@ SIZE       = INT
 IDENT      = Word(alphas+"_",alphanums+"_")("name")
 xxINT        = Regex(r"[+-]?\d+")
 
-EXPR = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
+EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*")("expr")
 
 LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
 
@@ -83,17 +83,12 @@ structtBody         = Forward()
 ####structDefn          = (CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #####structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) +Optional(AT+IDENT + EQ + ANNOTSTR("anno")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 structDecl          = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
-
-valvarAssign         = (INT("value") | EXPR | quotedString("string"))
 #structAnnotations   = ZeroOrMore(AT+IDENT("annoName") + EQ + INT("annoValue")) +  ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)
 #structAnno          = ZeroOrMore(AT+Group(IDENT("annoName") + EQ + INT("annoValue")))
-##structAnno          = ZeroOrMore(AT+Group(IDENT("annoName") + EQ + (INT("annoValue") | IDENT("annoVar") | quotedString("annoStr"))  ))
-###structAnno          = ZeroOrMore(AT+Group(IDENT + EQ + (INT("annoValue") | IDENT("annoVar") | quotedString("annoStr"))  ))
-structAnno          = ZeroOrMore(AT+Group(IDENT + EQ + valvarAssign  ))
-
+structAnno          = ZeroOrMore(AT+Group(IDENT("annoName") + EQ + (INT("annoValue") | IDENT("annoVar") | quotedString("annoStr"))  ))
 #structLocals        = Group(ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER))("localConst")
 #structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + INT("value")) + LARGER)
-structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + (INT("value") | EXPR  ) ) + LARGER)
+structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + (INT("value") | IDENT("eval")   ) ) + LARGER)
 structAdds          = structAnno("anno") + structLocals("localConst")
 structDefn          = (structDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)

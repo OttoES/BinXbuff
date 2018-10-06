@@ -3,9 +3,7 @@
 @doc_title  =  "Greatguide Communications Protocol Definition"
 @doc_header =  "BXB definition document"
 @doc_intro  =  '''This is the definiton of the message protocol
-                  used between the seat units and the master streamer.
-                  Messages and tags marked with "DevOnly" should be 
-                  ignored and is purly for trouble shooting. '''
+                  used between the seat units and the master streamer'''
 
 @c_includes =  '''
 #include <stdio.h>
@@ -22,20 +20,20 @@ void testfun(void)
 /* A list of all the commands. Note that all commands are send to a spesific 
    address except the broadcast command. Most commands have an acknowladge
    but note:
-   * each command have a paired acknowldge (ACK) command id
-   * there is only one not acknowladge (NAC) command shared by all commands 
-   * the debug command is not acknowladged
-   * a broadcast command is only acknowladced by one address
+   \n* each command have a paired acknowldge (ACK) command id
+   \n* there is only one not acknowladge (NAC) command shared by all commands 
+   \n* the debug command is not acknowladged
+   \n* a broadcast command is only acknowladced by one address
 */
 enum cmd_t { 
     CMD_BROADCAST      = 0x0A;  // Broadcast 
     CMD_BROADCAST_ACK  = 0x03;  // An acknowladge if the broadcast command was sucessfull 
     CMD_READ           = 0x15;
-    CMD_READ_REPLY     = 0x16;
+    CMD_READ_ACK       = 0x16;
     CMD_WRITE          = 0x29;
     CMD_WRITE_ACK      = 0x30;  // Acknowladge send on a write
     CMD_WR_SLAVE       = 0x3D;  // Not used: Reserved to be used to write to a single seat unit.
-    CMD_DEBUG          = 0x1A;  // DevOnly: Debug command only and should be ignored otherwise.
+    CMD_DEBUG          = 0x1A;  // Debug command only and should be ignored otherwise.
     CMD_NACK           = 0x04;  // A negative ackowladge used if any command failed  
     CMD_ACK_HEADER     = 0x05;  // An acknowladge used if the header was recieved withhout error.  
     }
@@ -45,7 +43,6 @@ enum cmd_t {
  This is the common header for all messages. 
 */
 struct MsgHeader
-<MSG_BASE=TRUE>
 {
     /* This is a magic number that indicates the start of the message. */
     uint32  magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
@@ -59,13 +56,9 @@ struct MsgHeader
        acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error. 
        When broadcasted the broadcast address 
     */
-    uint8          destAddr;   
-    uint8          sourceAddr;            // The source address.
-    enum8 cmd_t    cmd    = CMD_ID;       // This is the message identifier. 
-    uint8          subCmd;                //  
-    uint16         len    = MSG_LEN;      // the lenghth of he data 
-    uint16         seqNr;                 // A sequence number send with the request
-    CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
+    uint8       destAddr;   
+    uint8       sourceAddr;         // The source address.
+    enum8 cmd_t    cmd    = CMD_ID; // This is the message identifier. 
     
 }  
 
@@ -75,12 +68,9 @@ struct MsgHeader
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
-@C_PACK=1
-@C_UNPACK=1
 @DD=55  @FF=44
-<MSG_ID = CMD_READ> 
-<MSG_LEN=0>
-<IS_MSG = 0x55>
+<CMD_ID = x66> 
+<CMD_READ=6>
 {
       
     enum8 read_t   subCmd;         // 
@@ -90,37 +80,33 @@ struct ReadMsg headedby MsgHeader
       by the CMD_READ_ACK
     */
     uint16         seqNr;       
-    CRC16          crc16[destAddr:seqNr]; 
+    CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
 }
 
-struct ReadMsgReply headedby MsgHeader
-<CASE=44>
-<MSG_ID   = CMD_READ_REPLY> 
-<MSG_COND = (subCmd == DINFO_EVENT_LOG)  >
+struct ReadMsgACK headedby MsgHeader
+<CMD_ID = x66> 
+<CMD_READ=0x16>
 {
       
+    enum8 read_t   subCmd;         // 
+    uint16         len    = 8*listLen;     // no data send with this message
+    uint16         seqNr;       // A sequence number send with the request
+    CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
     infoLog[10]    log;                // normally
     CRC16          crc16[log:log]; // crc use for integrity checking
 
 }
 
-enum  SubCmdRead {
-    DINFO_STATUS             = 1;  // DevOnly
-    DINFO_VERSION            = 2;  // DevOnly
-    DINFO_NETSTATS           = 4;
-    DINFO_VERSION            = 5;
-    DINFO_LANG_STATS         = 6;
-    DINFO_HOPONOFF_STATS     = 7;
-    DINFO_EVENT_LOG          = 8;
-    DINFO_EVENT_LOG_WITH_DEL = 9;
-    DINFO_SEBUG              = 100; // DevOnly
-
-}
+enum  devinfo {
+    DINFO_STATUS   = 1;
+    DINFO_VER      = 2;
+    DINFO_NETSTATS = 4;
+};
 
 
 struct infoLog
 {
-    enum8  SubCmdRead etype;
+    enum8  etype etype;
     uint8        seatNr;
     uint8        seatLeftAux1;
     uint8        seatRightAux1;

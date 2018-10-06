@@ -425,11 +425,11 @@ class BaseCodeGenerator:
         s  = "      // unpack each field into a variable\n"
         s += "      // call the (external user) defined function with the unpacked data\n"
          #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False )
+        s += "   " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n   " , inclParent = False , inclConst = False,  noLastSeparater = False )
         s1 = ""
         for f in  structt["body"]:
            s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n      ")
+        s  += s1.replace("\n","\n     ")
         s += "      "+ self.funcProcessFunPrefix + structt["name"] +"("
         s += self.makeCallFunArgListAll(structt)
         s += ");\n"

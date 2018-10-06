@@ -45,7 +45,6 @@ enum cmd_t {
  This is the common header for all messages. 
 */
 struct MsgHeader
-<MSG_BASE=TRUE>
 {
     /* This is a magic number that indicates the start of the message. */
     uint32  magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
@@ -63,7 +62,7 @@ struct MsgHeader
     uint8          sourceAddr;            // The source address.
     enum8 cmd_t    cmd    = CMD_ID;       // This is the message identifier. 
     uint8          subCmd;                //  
-    uint16         len    = MSG_LEN;      // the lenghth of he data 
+    uint16         len    = 8*listLen;     // he lenghth of he data 
     uint16         seqNr;                 // A sequence number send with the request
     CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
     
@@ -79,7 +78,6 @@ struct ReadMsg headedby MsgHeader
 @C_UNPACK=1
 @DD=55  @FF=44
 <MSG_ID = CMD_READ> 
-<MSG_LEN=0>
 <IS_MSG = 0x55>
 {
       
@@ -96,7 +94,7 @@ struct ReadMsg headedby MsgHeader
 struct ReadMsgReply headedby MsgHeader
 <CASE=44>
 <MSG_ID   = CMD_READ_REPLY> 
-<MSG_COND = (subCmd == DINFO_EVENT_LOG)  >
+<MSG_COND = subCmd _EQ_ DINFO_EVENT_LOG>
 {
       
     infoLog[10]    log;                // normally

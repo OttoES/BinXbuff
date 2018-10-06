@@ -52,13 +52,9 @@ class BaseCodeGenerator:
     funcPackBaseName    = "packMsg"
     funcProcessBuffName = "CallStoreSendBuffer"
     funcUnpackNamePrefix= "BIN_unpack"
-    funcProcessFunPrefix= "BIN_process"              # prefix for the functions that process incoming messages
-    noTypeName          = "void" 
+    funcProcessFunPrefix= "BIN_process"
+    noTypeName          = "void"
     intTypeName         = "int "
-    lenTypeName         = "size_t "                  # buffere length etc
-    singletonFuncDecl   = "\n// singleton function\n"# will be static if in a class
-    privateFuncDecl     = "static "                  # will be private if in a class
-    errorHandlerName    = "printf"                   # function that will be called on an error  
     typeTable1          = {"bool":"bool","enum8":"uint8_t","char":"char"}
     typeTable2          = {"string":"char","zstring":"char","ustring":"wchar","uzstring":"wchar"}
     # these types are internally generated and not passed in by the user  
@@ -147,7 +143,7 @@ class BaseCodeGenerator:
             #s = s + self.lookupType(f["type"])+ "  "+ f["name"] + ","
         return s[:-1] 
     #####-------------------------------------
-    def makeFunName(self,structt,retType,funName,args,isSingletonFun = False,isPrivate = False):
+    def makeFunName(self,structt,retType,funName,args,isClassFun = True):
         """ Make a valid function declaration
 
         Arg:
@@ -155,23 +151,18 @@ class BaseCodeGenerator:
                        it should be prefixed wih the class name (or what ever the 
                        programming language require)
           isClassFun -  will declare it as a static (a class function)
-          isSingletonFun  specifies wether it is a static class memmber 
-          isPrivate       means that it will not be called externally
         """
         s = ""
-        if isPrivate:      s+= self.privateFuncDecl
-        if isSingletonFun: s+= self.singletonFuncDecl
+        if isClassFun: s+= "static "
         s += retType + " " + funName + "(" + args + ")"
         return s
     def makeDeclFunArgList(self,structt):
         return self.makeFieldListGeneric(structt,True, seperator = "," , inclParent = True , inclConst = False )    
     def makeCallFunArgList(self,structt):
         return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = False )
-    def makeCallFunArgListAll(self,structt):
-        return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = True )
     def makeClassMemberList(self,structt):
         return self.makeFieldListGeneric(structt,True, seperator = ";\n  " , inclParent = False , inclConst = True )
-    def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False, noLastSeparater = True ):
+    def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False ):
         """ Flexible generation of variable/argument list 
         """
         fields    = structt["body"]
@@ -197,11 +188,8 @@ class BaseCodeGenerator:
                 #s += self.genVarDecl(f["type"] , f["name"],arrLen ) + seperator
                 s += self.genVarDecl(f, inclArrLen =False, termstr = seperator ) 
             else: 
-                #s += self.genVarOnlyDecl(f["type"] , f["name"],arrLen ) + seperator
-                s += f["name"] + seperator
-        if  noLastSeparater: 
-            return s[:-len(seperator)]
-        return s         
+                s += self.genVarOnlyDecl(f["type"] , f["name"],arrLen ) + seperator
+        return s[:-len(seperator)]         
     def genPackFieldCode(self,f):
         tsize = self.lookupTypeSize(f["type"])
         if "arrLen" in f:  
@@ -221,31 +209,6 @@ class BaseCodeGenerator:
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>16);\n"
             return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>24);\n"
-        s  = "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
-        s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
-        return s
-    def genUnpackFieldCode(self,f):
-        tsize   = self.lookupTypeSize(f["type"])
-        bufname = self.packBuffName 
-        if "arrLen" in f:  
-            lenstr = str(tsize)+"*" + f["arrLen"]
-            ## this is only valid if the endianess is the same for multibyte types !!!!
-            return "memcpy("+f["name"] +","+bufname+","+lenstr + ");\n"
-        if tsize == 1:
-            return f["name"] + " = ("+f["type"]+ ")" + bufname+"[pos++] " + ";\n"
-        elif tsize == 2: 
-            # this is  little endian
-            return f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8)" +  ");\npos +=2;\n"
-
-        elif tsize == 4: 
-            # # this is stored in little endian
-            # s  = "// it is faster to copy byte by byte than calling memcpy()\n"
-            # s += "    "+ self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
-            # s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
-            # s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>16);\n"
-            # return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>24);\n"
-            # this is  little endian
-            return f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8) + (((uint32_t)"+ bufname+"[pos+2])<<16) + (((uint32_t)"+ bufname+"[pos+3])<<24)) " +  ");\npos +=4;\n"
         s  = "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
         s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s
@@ -396,6 +359,7 @@ class BaseCodeGenerator:
         return s
     def genAllEnumDefs(self):    
         s = ""
+        
         for enm in enumList:
             s += "\nenum "+enm["enumName"] + " {\n"
             elmlist = enm["values"]
@@ -422,43 +386,12 @@ class BaseCodeGenerator:
         return None
 
     def genProcessMsgDetail(self,structt):
-        s  = "      // unpack each field into a variable\n"
-        s += "      // call the (external user) defined function with the unpacked data\n"
-         #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False )
-        s1 = ""
-        for f in  structt["body"]:
-           s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n      ")
-        s += "      "+ self.funcProcessFunPrefix + structt["name"] +"("
-        s += self.makeCallFunArgListAll(structt)
-        s += ");\n"
+        s = "      "+ self.funcProcessFunPrefix + sructt["name"] +" () ...\n"
         return s
 
-    def genProcessMsgFuns(self):
-        #find the base messages
-        s = ""
-        for st in structList:
-            if "localConst" in st:
-                lst     = st["localConst"]
-                bstruct = self.findInConstList(lst,"MSG_BASE")
-                # if MSG_BASE is declared, a message select and unpack is created
-                if bstruct :
-                    s += self.genSelecAndProcessMsgFun(st)            
-        return s
-
-    def genSelecAndProcessMsgFun(self,baseStructt):
-        s  = "\n// This is the base message parser that should be called with\n// the byte array to be translated to a spesific message\n"
-        s  = "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
-        #s += self.singletonFuncDecl + self.lenTypeName + " " + "parseMsg(uint8_t buff[],int len) \n{\n"
-        s += self.makeFunName(baseStructt,self.lenTypeName,self.funcUnpackNamePrefix, "uint8_t buff[],int len",isSingletonFun=True) + "\n{\n"
-        #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "   " + self.makeFieldListGeneric(baseStructt,inclTypes = True, seperator = ";\n   " , inclParent = False , inclConst = False,  noLastSeparater = False )
-        s1 = ""
-        for f in  baseStructt["body"]:
-           s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n   ")
-        s += ";\n"
+    def genSelecAndProcessMsgFun(self):
+        s  = "\n// First determine the struct/message type basedon MSG_ID and\n// MSG_COND and then unpck\n"
+        s += self.intTypeName + " " + "parseMsg(uint8_t buff[],int len) \n{\n"
         for st in structList:
             if "localConst" in st:
                 lst = st["localConst"]
@@ -475,15 +408,14 @@ class BaseCodeGenerator:
                     if 'expr' in itm:
                         s2 = "("+itm['expr']+")"
                 if len(s1)>1 and len(s2)>1:
-                    s3 = "   if ("+s1+" & "+s2+") {\n"
+                    s += "   if ("+s1+" & "+s2+") {\n"
                 else: 
-                    s3 = "   if "+s1+s2+" {    // "+ st["name"] + "\n"
+                    s += "   if "+s1+s2+" {    // "+ st["name"] + "\n"
                 if len(s1)>1 or len(s2)>1:
-                    s += s3+ self.genProcessMsgDetail(st)
+                    s += self.genProcessMsgDetail(st)
                     s += "   } else \n"
             #s += self.genPackFun( st) +"\n"
-        s += "   {\n      // error\n      "+self.errorHandlerName+'("Unknown message tag");\n   }\n'
-        s += "   return pos;\n"
+        s += "   {\n   // error\n   }\n"
         s += "} // end\n"
         return s
 
@@ -495,7 +427,7 @@ class BaseCodeGenerator:
         s += self.genAllEnumDefs()
         for st in structList:
             s += self.genPackFun( st) +"\n"
-        s += self.genProcessMsgFuns()
+        s += self.genSelecAndProcessMsgFun()
         return s
 
 

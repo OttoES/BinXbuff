@@ -1,4 +1,4 @@
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint,BaseCodeGenerator)
+from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,ppprint)
 
 
 def mainTest2():
@@ -6,9 +6,6 @@ def mainTest2():
     ppprint()
     docgen = MarkdownGenerator() 
     s = docgen.genAll()
-    print(s)
-    cgen = BaseCodeGenerator() 
-    s = cgen.genAll()
     print(s)
 
 

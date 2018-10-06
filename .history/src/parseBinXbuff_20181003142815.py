@@ -60,7 +60,7 @@ SIZE       = INT
 IDENT      = Word(alphas+"_",alphanums+"_")("name")
 xxINT        = Regex(r"[+-]?\d+")
 
-EXPR = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
+EXPR = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " ")("expr")
 
 LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
 
@@ -93,7 +93,7 @@ structAnno          = ZeroOrMore(AT+Group(IDENT + EQ + valvarAssign  ))
 
 #structLocals        = Group(ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER))("localConst")
 #structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + INT("value")) + LARGER)
-structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + (INT("value") | EXPR  ) ) + LARGER)
+structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + (INT("value") | IDENT("eval")   ) ) + LARGER)
 structAdds          = structAnno("anno") + structLocals("localConst")
 structDefn          = (structDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)

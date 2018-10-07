@@ -50,6 +50,8 @@
 .history.old/
 test*.md
 *.zip
+*.pyc
+__pycache__/
 
 # Kernel Module Compile Results
 *.mod*

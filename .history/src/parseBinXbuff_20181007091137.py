@@ -25,10 +25,10 @@ def addStructToList(structt):
     structList.append(sdict)
     structDict[sdict["name"]] = sdict
  
-# def addMessageToList(structt):
-#     sdict = structt.asDict()
-#     msgList.append(sdict)
-#     msgDict[sdict["name"]] = sdict
+def addMessageToList(structt):
+    sdict = structt.asDict()
+    msgList.append(sdict)
+    msgDict[sdict["name"]] = sdict
  
 
 def addEnumToList(enumm):
@@ -65,7 +65,7 @@ SIZE       = INT
 #VARNAME    = IDENTIFIER
 ##ident = Word(alphas+"_",alphanums+"_").setName("identifier")
 IDENT      = Word(alphas+"_",alphanums+"_")("name")
-#xxINT        = Regex(r"[+-]?\d+")
+xxINT        = Regex(r"[+-]?\d+")
 
 EXPR = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
 
@@ -90,7 +90,7 @@ structtBody         = Forward()
 ####structDefn          = (CMNT + STRUCT_ - ident + Optional(EXTENDS_ + ident("baseName")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #####structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict)) + Optional(EXTENDS_ + IDENT("baseName")) +Optional(AT+IDENT + EQ + ANNOTSTR("anno")) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 structDecl          = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
-#messageDecl         = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
+messageDecl         = CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  
 
 valvarAssign        = (INT("value") | EXPR | quotedString("string"))
 #structAnnotations   = ZeroOrMore(AT+IDENT("annoName") + EQ + INT("annoValue")) +  ZeroOrMore(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER)
@@ -105,7 +105,7 @@ structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + (INT("value") | EXPR  )
 structAdds          = structAnno("anno") + structLocals("localConst")
 structDefn          = (structDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
-#messageDefn         = (messageDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addMessageToList)
+messageDefn         = (messageDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addMessageToList)
 
 #typespec = oneOf("""double float int32 int64 uint32 uint64 sint32 sint64 
 #                    fixed32 fixed64 sfixed32 sfixed64 bool string bytes""") | ident
@@ -185,8 +185,7 @@ annotateDef     = AT + (IDENT + EQ + ANNOTSTR).setParseAction(addToAnnotationDic
 
 #topLevelStatement = Group(structDefn | structExtension | enumDefn | serviceDefn | importDirective | optionDirective)
 ##topLevelStatement = Group(structDefn | structExtension | enumDefn | importDirective | optionDirective)
-###topLevelStatement = Group(annotateDef | structDefn  | messageDefn  | enumDefn | importDirective | optionDirective)
-topLevelStatement = Group(annotateDef | structDefn  |  enumDefn | importDirective | optionDirective)
+topLevelStatement = Group(annotateDef | structDefn  | messageDefn  | enumDefn | importDirective | optionDirective)
 
 ##parser = Optional(packageDirective) + ZeroOrMore(topLevelStatement)
 #parser = Group(CMNT) + ZeroOrMore(topLevelStatement)

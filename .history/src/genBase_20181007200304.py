@@ -556,7 +556,7 @@ class OOcodeGenerator(CcodeGenerator):
         return s
 
 
-class MarkdownGenerator(CcodeGenerator):
+class MarkdownGenerator(BaseCodeGenerator):
     H1     = "# "
     H2     = "## "
     H3     = "### "

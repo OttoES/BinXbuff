@@ -248,7 +248,7 @@ class BaseCodeGenerator:
 
     # ==================================================
 
-class CcodeGenerator(BaseCodeGenerator):
+
     def genPackFieldCode(self,f):
         tsize = self.lookupTypeSize(f["type"])
         if "arrLen" in f:  
@@ -510,7 +510,7 @@ class CcodeGenerator(BaseCodeGenerator):
         return s
 
 
-class OOcodeGenerator(CcodeGenerator):
+class OOcodeGenerator(BaseCodeGenerator):
     typeTable1      = {"bool":"bool","enum8":"uint8_t","char":"char","string":"String"}
     def genClassDeclBegin(self,structname,parentstruct= None):
         s = "class "+structname+" "
@@ -556,7 +556,7 @@ class OOcodeGenerator(CcodeGenerator):
         return s
 
 
-class MarkdownGenerator(CcodeGenerator):
+class MarkdownGenerator(BaseCodeGenerator):
     H1     = "# "
     H2     = "## "
     H3     = "### "

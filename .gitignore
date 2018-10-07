@@ -42,6 +42,12 @@
 *.idb
 *.pdb
 
+# other
+*.bak
+*.old
+*.old*
+.history/
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd

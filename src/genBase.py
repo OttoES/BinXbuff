@@ -555,7 +555,7 @@ class OOcodeGenerator(CcodeGenerator):
             s += self.genStruct( st) +"\n"
         return s
 
-
+# generate documentation
 class MarkdownGenerator(CcodeGenerator):
     H1     = "# "
     H2     = "## "

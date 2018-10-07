@@ -47,6 +47,9 @@
 *.old
 *.old*
 .history/
+.history.old/
+test*.md
+*.zip
 
 # Kernel Module Compile Results
 *.mod*

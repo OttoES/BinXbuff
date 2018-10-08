@@ -57,7 +57,7 @@ struct MsgHeader
        depending on the command. If it is a broadcast command the destination
        will still be for a spesific address and that address should send CMD_BROADCAST_ACK
        acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error. 
-       When broadcasted the broadcast address 
+       When broadcasted the broadcast address is 0xFF
     */
     uint8          destAddr;   
     uint8          sourceAddr;            // The source address.
@@ -113,12 +113,13 @@ enum  SubCmdRead {
     DINFO_HOPONOFF_STATS     = 7;
     DINFO_EVENT_LOG          = 8;
     DINFO_EVENT_LOG_WITH_DEL = 9;
-    DINFO_SEBUG              = 100; // DevOnly
+    DINFO_DEBUG              = 100; // DevOnly
 
 }
 
 
 struct infoLog
+@STRUCT=1
 {
     enum8  SubCmdRead etype;
     uint8        seatNr;

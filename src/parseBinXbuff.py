@@ -1,9 +1,9 @@
-# protobuf_parser.py
+# binXbuff_parser.py
 #
-#  simple parser for parsing protobuf .proto files
+#  simple parser for parsing binXbuff files
 #
-#  Copyright 2010, Paul McGuire
-#  Modified  2018,  otto    
+#  Based on protobuf parser by Paul McGuire
+#  Copyright 2018  OttoES    
 #
 
 

@@ -1,7 +1,7 @@
 """ Copyright OttoES 2018
 """
 
-from parseBinXbuff import (parser, enumList  , structList,structDict, msgList,msgDict, headerList, annotateDict)
+from parseBinXbuff import (parser, enumList  , structList,structDict, msgList,msgDict, annotateDict)
 
 from pprint import pprint
 
@@ -557,9 +557,9 @@ class OOcodeGenerator(CcodeGenerator):
 
 # generate documentation
 class MarkdownGenerator(CcodeGenerator):
-    H1     = "# "
-    H2     = "## "
-    H3     = "### "
+    H1     = "\n# "
+    H2     = "\n## "
+    H3     = "\n### "
     LIST   = "* "
     BOLT   = "**"
     LINE   = "___\n"
@@ -614,7 +614,7 @@ class MarkdownGenerator(CcodeGenerator):
                 s += cleanstr(st["comment"]) +m.NLNL
             if "anno" in st:
                 s += m.BR + m.BOLT+ "Annotations" + m.BOLT+ m.NLNL
-                for loc in st["localConst"]:
+                for loc in st["anno"]:
                     #s1 = loc.get("value","") + loc.get("eval","") + loc.get("sval","") 
                     s1 = ""
                     s += m.LIST +  loc["name"]  + "  =  " + s1 + m.NLNL

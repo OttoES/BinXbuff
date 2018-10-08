@@ -1,4 +1,11 @@
 from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,ppprint,BaseCodeGenerator)
+import os
+
+def saveToFile(fname,s):
+    os.makedirs(os.path.dirname(fname), exist_ok=True)
+    text_file = open(fname, "w")
+    text_file.write(s)
+    text_file.close()
 
 
 def mainTest2():
@@ -6,9 +13,11 @@ def mainTest2():
     ppprint()
     docgen = MarkdownGenerator() 
     s = docgen.genAll()
+    saveToFile("doc/xx.md",s)
     print(s)
     cgen = CcodeGenerator() 
     s = cgen.genAll()
+    saveToFile("src_c/xx.c",s)
     print(s)
 
 

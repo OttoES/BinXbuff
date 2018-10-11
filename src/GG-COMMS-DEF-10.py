@@ -1,4 +1,4 @@
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,OOcodeGenerator,ppprint,BaseCodeGenerator)
+from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,OOcodeGenerator,ppprint,BaseCodeGenerator,OOpythonGenerator)
 import os
 
 def saveToFile(fname,s):
@@ -8,7 +8,7 @@ def saveToFile(fname,s):
     text_file.close()
 
 
-def mainTest2():
+def mainTest2():        
     pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")
     ppprint()
     docgen = MarkdownGenerator() 
@@ -25,6 +25,9 @@ def mainTest2():
     (sh,sc) = cppgen.genAll("hh.hpp","hh.cpp")
     saveToFile("src_c/xx.hpp",sh)
     saveToFile("src_c/xx.cpp",sc)
+    pygen = OOpythonGenerator() 
+    s = pygen.genAll("xx.py")
+    saveToFile("src_py/xx.py",s)
 
 
 if __name__ == "__main__":

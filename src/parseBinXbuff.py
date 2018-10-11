@@ -3,7 +3,7 @@
 #  simple parser for parsing binXbuff files
 #
 #  Based on protobuf parser by Paul McGuire
-#  Copyright 2018  OttoES    
+#  Copyright (2018)  OttoES    
 #
 
 

@@ -1,4 +1,4 @@
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,ppprint,BaseCodeGenerator)
+from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,OOcodeGenerator,ppprint,BaseCodeGenerator)
 import os
 
 def saveToFile(fname,s):
@@ -14,11 +14,17 @@ def mainTest2():
     docgen = MarkdownGenerator() 
     s = docgen.genAll()
     saveToFile("doc/xx.md",s)
-    print(s)
+    #print(s)
     cgen = CcodeGenerator() 
-    s = cgen.genAll()
-    saveToFile("src_c/xx.c",s)
-    print(s)
+    (sh,sc) = cgen.genAll("xx.h")
+    saveToFile("src_c/xx.h",sh)
+    saveToFile("src_c/xx.c",sc)
+    #print(s)
+
+    cppgen = OOcodeGenerator() 
+    (sh,sc) = cppgen.genAll("hh.hpp","hh.cpp")
+    saveToFile("src_c/xx.hpp",sh)
+    saveToFile("src_c/xx.cpp",sc)
 
 
 if __name__ == "__main__":

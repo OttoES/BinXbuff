@@ -24,13 +24,14 @@ Annotations are not stricly part of the definition but mainly used to pass data 
 These are comments that are only relevant to the BinXbuff definition or it can be used to temporarily ignore a part of a definition. These comments start with '#' and end at the end of the line.
 
 e.g.
-```# this is a comment
+```
+ # this is a comment
 ```
 ## Documentation Comments 
 Documentation comments  are comments that explain the data stream. These comment follow the C/CPP style comments and can be used by a documentation generator to generate documentation for the protocol.
 
 e.g.
-```
+```C
 /* 
    This comment explains the message definiton below 
  */
@@ -40,13 +41,13 @@ struct msg {
 ```
 
 ## Enumeration
-Most protocols have a lot of tags with numeric values that have special meaning. BinXbuff therefore allow the definition of these tags with their assosiated values. (Note that in the structure definitions these enums are declared with a spesific byte size, e.g. enum16)
+Most protocols have a lot of tags with numeric values that have special meaning. BinXbuff therefore allow the definition of these tags with their assosiated values. (Note that here they are only declared as an unsized value but, when used in a structure, enums are declared with a spesific byte size, e.g. enum16)
 
 e.g.
-```
+```C
 enum Gender {
     UNKNOWN = 0;    
-    MALE    = 1;   // set as male
+    MALE    = 1;     // set as male
     FEMLE   = 0x2;   // set as female
     OTHER   = 0x3;   // if a person identifies with a different gender 
 }
@@ -66,7 +67,7 @@ A struture consists of multiple fields. Each field is defined in terms a its siz
 ### Basic definition
 The simplest definiton consists of a type and a field name.
 e.g.
-```
+```C
 struct msg2 {
   uint32   var2;     
   uint8    var3;     
@@ -76,12 +77,42 @@ struct msg2 {
 
 ### Constant field value
 Field with constant values can be declared as follows:
-```
+```C
 struct msg3 {
   uint32   __magic     = 0x1234567;     
   enum8    Command cmd = READ_INFO;
   uint8    var4;     
   uint8    var5;     
 } 
+```
+
+### Endianess
+All fields are little endian by default. If a value should be big endian it can be annotated with __@BE__ to indicate it:
+```C
+struct msg4 {
+  uint32    var6 @BE;     
+} 
+```
+
+# Specialize Annotations
+Annotations are use to aid in the documentation an code generation. Annotation start with the __@__ symbol. If annotations are aimed at a spesific code generator, the generator name will normally be used a a prefix just after the @ symbol, e.g. @c_xxx, @py_xxxx, @doc_xxxx, @cpp_xxx, etc,
+
+## Common Annotations
+The following annotations contain usefull information and is used by most generators to document the code.
+
+```
+@name       =  "Define Device Messages"
+@version    =  "0.0.1"
+@copyright  =  "OttoES (2018)"
+```
+
+## Documentation Annotations
+These tas are used by the document generator and should be self explanatary.
+```
+@doc_title  =  "Communications Protocol Definition"
+@doc_header =  "BXB definition document"
+@doc_intro  =  '''This is the definiton of the message protocol
+                  used for bla-bla-bla '''
+
 ```
 

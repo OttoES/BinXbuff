@@ -49,7 +49,7 @@ struct MsgHeader
 <MSG_BASE=TRUE>
 {
     /* This is a magic number that indicates the start of the message. */
-    uint32  magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
+    uint32  __magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
     /*
        The destination address is where the message should be send to.
        Devices are allocated a fixed address. The address for the master streamer 
@@ -66,7 +66,7 @@ struct MsgHeader
     uint8          subCmd;                //  
     uint16         len    = MSG_LEN;      // the lenghth of he data 
     uint16         seqNr;                 // A sequence number send with the request
-    CRC16          crc16[destAddr:seqNr]; // crc use for integrity checking
+    CRC16          __crc16[destAddr:seqNr]; // crc use for integrity checking
     
 }  
 
@@ -91,7 +91,7 @@ struct ReadMsg headedby MsgHeader
       by the CMD_READ_ACK
     */
     uint16         seqNr;       
-    CRC16          crc16[destAddr:seqNr]; 
+    CRC16          __crc16[destAddr:seqNr]; 
 }
 
 struct ReadMsgReply headedby MsgHeader
@@ -101,7 +101,7 @@ struct ReadMsgReply headedby MsgHeader
 {
       
     infoLog[10]    log;                // normally
-    CRC16          crc16[log:log]; // crc use for integrity checking
+    CRC16          __crc16[log:log]; // crc use for integrity checking
 
 }
 
@@ -141,7 +141,7 @@ enum Gender {
   Line 2 of comment
 */
 struct SetProfile headedby MsgHeader 
-@CC=56
+@C_PACK_FALSE=56
 @CV=542
 <MSG_ID = 0x1155>  <ARRLEN = 10>
 { 
@@ -149,9 +149,9 @@ struct SetProfile headedby MsgHeader
   char[20]  surname; // the user surname
   enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
 
-  enum8  Gender gender;
-  int8     dlen;
-  CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
+  enum8     Gender gender;
+  int8      dlen  @BE;
+  CRC16     hdrCrc2[dest:dlen] @BE; // a message calculated crc
   char[dlen]    addit;
-  zstring email = "eeeeee"; 
+  zstring     __email = "eeeeee"; 
 }

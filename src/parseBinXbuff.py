@@ -121,10 +121,11 @@ typeres             = oneOf("""STRUCTLEN8 STRUCTLEN16 CRC8 CRC16 CRC32""")
 
 #typespec            =  typestd | typetag | typeres | ident
 arrDec              = Optional(LBRACK + EXPR("arrLen") + RBRACK)
+varEndian           = Optional("@BE",default="@LE")("endianess")
 
 fieldtag            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
 #fieldint            = typeint("type")  + Optional(LBRACK + EXPR("arrLen") + RBRACK)  + IDENT + Optional(EQ + EXPR("value"))
-fieldint            = typeint("type")  + arrDec  + IDENT + Optional(EQ + EXPR("value"))
+fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value"))
 fieldstr            = typestr("type")  + IDENT + Optional(EQ + quotedString("value"))
 #fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
 fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
@@ -141,7 +142,9 @@ fieldDirective      = LBRACK + Group(IDENT("fid") + EQ + rvalue("fidval")) + RBR
 ###fieldDefn           = typespec("type") + ident + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI + Optional(CMNT2("comment2"))
 field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldtag | fieldres | fieldstruct 
 ####fieldDefn           = CMNT + field  + SEMI + Optional(CMNT2)
-fieldDefn           = CMNT + field  + SEMI + Optional(CMNT2)
+#fieldEndian         = optional("@LE"("endian") | "@BE")
+#fieldNoparam        = optional("@LE" | "@BE")
+fieldDefn           = CMNT + field  + varEndian  + SEMI + Optional(CMNT2)
 
 # enumDefn        ::= 'enum' ident '{' { ident '=' integer ';' }* '}'
 ##enumDefn            = CMNT + ENUM_("typespec") - ident('name') +  LBRACE + Dict( ZeroOrMore( Group(ident("name") + EQ + integer("value") + SEMI + CMNT2 ) ))('values') + RBRACE

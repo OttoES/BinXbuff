@@ -87,14 +87,14 @@ Fields in this structure
 
 |Field|Type|Array|Comment|
 |------|-----|-----|------------------------------|
-|magic|uint32|-| This is a magic number that indicates the start of the message.   (This is 0x900DBEEF in bigendian format)|
+|__magic|uint32|-| This is a magic number that indicates the start of the message.   (This is 0x900DBEEF in bigendian format)|
 |destAddr|uint8|-|        The destination address is where the message should be send to.        Devices are allocated a fixed address. The address for the master streamer         is always 0. Seat units are each configured with ther own addresses.        Messages can be either directed to a single device or broadcasted         depending on the command. If it is a broadcast command the destination        will still be for a spesific address and that address should send CMD_BROADCAST_ACK        acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error.         When broadcasted the broadcast address is 0xFF     |
 |sourceAddr|uint8|-|  The source address.|
 |cmd|enum8 [cmd_t](#enum-cmd_t)|-|  This is the message identifier. |
 |subCmd|uint8|-|   |
 |len|uint16|-|  the lenghth of he data |
 |seqNr|uint16|-|  A sequence number send with the request|
-|crc16|CRC16|-|  crc use for integrity checking|
+|__crc16|CRC16|-|  crc use for integrity checking|
 |Total| length|14|4+1+1+1+1+2+2+2|
 
 ### ReadMsg
@@ -127,7 +127,7 @@ Structure inherits all fields from **MsgHeader** and add these
 |subCmd|enum8 [read_t](#enum-read_t)|-|  |
 |len|uint16|-|  no data send with this message|
 |seqNr|uint16|-|       A sequence number assosiated with this message and returned        by the CMD_READ_ACK     |
-|crc16|CRC16|-||
+|__crc16|CRC16|-||
 |Total| length|21|4+1+1+1+1+2+2+2+ 1+2+2+2|
 
 ### ReadMsgReply
@@ -146,7 +146,7 @@ Structure inherits all fields from **MsgHeader** and add these
 |------|-----|-----|------------------------------|
 |Parent|[MsgHeader](#msgheader)||This data prepend this structure|
 |log|infoLog [infoLog](#infolog)|10|  normally|
-|crc16|CRC16|-|  crc use for integrity checking|
+|__crc16|CRC16|-|  crc use for integrity checking|
 |Total| length|variable|4+1+1+1+1+2+2+2+  (10)*-100000+2|
 
 ### infoLog
@@ -174,7 +174,7 @@ Fields in this structure
 
 
 **Annotations**
-* CC  =  
+* C_PACK_FALSE  =  
 * CV  =  
 
 
@@ -196,5 +196,5 @@ Structure inherits all fields from **MsgHeader** and add these
 |dlen|int8|-||
 |hdrCrc2|CRC16|-|  a message calculated crc|
 |addit|char|dlen||
-|email|zstring|-||
+|__email|zstring|-||
 |Total| length|variable|4+1+1+1+1+2+2+2+ 4+ (20)*1+1+1+1+2+ (dlen)*1+-100000|

@@ -47,6 +47,8 @@ class BaseCodeGenerator:
     codeCommentStart    = "/* "
     codeCommentEnd      = " */"
     codeCommentLineStart= "// "
+    doxPre              = "\n @"         # doxygen prefix
+    doxPost             = " "         # doxygen prefix
     typePostfix         = "_t"
     funcNamePrefix      = "BIN_"
     funcPackCallPrefix  = "BIN_call"
@@ -170,8 +172,8 @@ class BaseCodeGenerator:
           funName    - the base name (root) of the name. If it is part of a class
                        it should be prefixed wih the class name (or what ever the 
                        programming language require)
-          isClassFun -  will declare it as a static (a class function)
-          isSingletonFun  specifies wether it is a static class memmber 
+          args       - function arguments
+          isSingletonFun  specifies wether it is a static class member 
           isPrivate       means that it will not be called externally
         """
         s = ""
@@ -181,14 +183,14 @@ class BaseCodeGenerator:
         s += retType + " " + nn + "(" + args + ")"
         return s
     def makeDeclFunArgList(self,structt):
-        return self.makeFieldListGeneric(structt,True, seperator = "," , inclParent = True , inclConst = False )    
+        return self.makeFieldListGeneric(structt,True, seperator = "," , inclParent = True , inclConst = False, inclPrivate = False )    
     def makeCallFunArgList(self,structt):
-        return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = False )
+        return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = False, inclPrivate = False )
     def makeCallFunArgListAll(self,structt):
         return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = True )
     def makeClassMemberList(self,structt):
         return self.makeFieldListGeneric(structt,True, seperator = ";\n  " , inclParent = False , inclConst = True )
-    def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False, noLastSeparater = True, inclArrLen =False ):
+    def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False, noLastSeparater = True, inclArrLen =False, inclPrivate = False ):
         """ Flexible generation of variable/argument list 
         """
         fields    = structt["body"]
@@ -202,7 +204,8 @@ class BaseCodeGenerator:
             # but can be over ridden with  inclConst
             if "value" in f and inclConst == False: 
                 continue  
-            
+            if inclPrivate == False and f["name"].startswith("__"):
+                continue            
             arrLen = f.get("arrLen",None)    
             if inclTypes:
                 #s += self.genVarDecl(f["type"] , f["name"],arrLen ) + seperator
@@ -255,6 +258,35 @@ class BaseCodeGenerator:
                 anno = self.findInConstList(lst,annostr)
                 if anno: return True
         return False
+    def isFuncRequired(self,structt,funct,lang):
+        """Check if this function should be generated.
+
+           More or less the following logic:
+              - look at struct annottion
+              - look at global language anotation
+              - look at global annottion
+        """
+        # local annoation takes precedence so first look at that
+        if "anno" in structt:
+            lst     = structt["anno"]
+            anno = self.findInConstList(lst,lang+"_"+funct)
+            if anno: return True
+            anno = self.findInConstList(lst,lang+"_"+funct+"_FALSE")
+            if anno: return False
+            anno = self.findInConstList(lst,funct)
+            if anno: return True
+            anno = self.findInConstList(lst,funct+"_FALSE")
+            if anno: return False
+        lst     = annotateDict
+        if lang+"_"+funct in lst:
+            return True
+        if lang+"_"+funct+"_FALSE" in lst:
+            return False
+        if funct in lst:
+            return True
+        if funct+"_FALSE" in lst:
+            return False
+        return True
 
 
     # ==================================================
@@ -274,7 +306,7 @@ class CcodeGenerator(BaseCodeGenerator):
             return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
         elif tsize == 4: 
             # this is stored in little endian
-            s  = "// it is faster to copy byte by byte than calling memcpy()\n"
+            s  = self.makeLineComment(" it is faster to copy byte by byte than calling memcpy()")
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>16);\n"
@@ -318,10 +350,26 @@ class CcodeGenerator(BaseCodeGenerator):
               s += "    int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.packBuffName+", "+p1 + "," + p2 + ");\n" 
             #-- check if it is assigned a value
             if "value" in f:
-                s += "    // this is a fixed assigned field\n"
+                s += "    "+self.makeLineComment(" this is a fixed assigned field")
                 #s += "    " + f["name"] +" = " + f["value"] +";\n" 
                 s += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
             s += "    " + self.genPackFieldCode(f) 
+            #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
+            #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
+        return s 
+    def genUnpackFields(self,structt):    
+        fields    = structt["body"]
+        s = ""
+        for f in fields:
+            if f["type"] == "CRC16":
+              p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
+              p2,fnd2 = self.genPackFieldPosCalc(structt,f['rangeEnd'],True)
+              s += "    ??int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.packBuffName+", "+p1 + "," + p2 + ");\n" 
+            #-- check if it is assigned a value
+            if "value" in f:
+                s += "    "+self.makeLineComment(" this is a fixed assigned field")
+                s += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
+            s += "    " + self.genUnpackFieldCode(f) 
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s 
@@ -367,34 +415,25 @@ class CcodeGenerator(BaseCodeGenerator):
         structnme     = structt["name"]
         fields        = structt["body"]
         parentArgs    = ""
-        # the parent arguments should also be send 
-        # if "parentName" in struct:
-        #     prn           = struct["parentName"]
-        #     parentStruct  = structDict[prn]
-        #     parentStruct  = parentStruct["body"]
-        #     parentArgs    = self.genTypedArg(parentStruct) +", "
-        # in some cased the dest buffer should also be passed as argument
-
+        s  = "\n"
+        # generate the comments
+        s += self.codeCommentStart
+        s += self.doxPre + "param buff[]"+self.doxPost+"    buffer into which data should be packed "
+        s += self.doxPre + "param pos"+self.doxPost+"       start position in buffer "
+        s += self.doxPre + "return if > 0"+self.doxPost+"   position in array of last extracted data"
+        s += self.doxPre + "return if < 0"+self.doxPost+"   error in data stream "
+        s += "\n" + self.codeCommentEnd +"\n"
         #-- build the argument list for the function
         if copyToBuff:
             args = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" pos, "
-            #args = self.makeDeclFunArgList(structt)
-            # s    = self.makeFunName(structt,self.intTypeName,self.funcPackBaseName,args)
-            # s  = self.intTypeName +" "+ funName +"(" + parentArgs
-            # s += self.makeDeclFunArgList(structt)
-            #funName   = self.funcPackBaseName + structnme.capitalize()
-            # s  = self.intTypeName +" "+ funName +"(" + parentArgs
-            # s += self.genVarOnlyDecl(self.packBuffType,self.packBuffName,0) + ","
-            # s += self.genVarOnlyDecl(self.intTypeName, "pos") + "," 
-        # else:
-        #     funName   = self.funcPackCallPrefix + structnme.capitalize()
-        #     s  = self.intTypeName +" "+ funName +"(" + parentArgs
         else: args = ""
         args += self.makeDeclFunArgList(structt)
         #-- build the function call
-        s     = self.makeFunName(structt,self.intTypeName,namePrefix+self.funcPackBaseName,args)
+        s += self.makeFunName(structt,self.intTypeName,namePrefix+self.funcPackBaseName,args)
         return s
     def genPackFun(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
+        # determine if the function should be defined 
+        if not self.isFuncRequired(structt,"PACK","C") : return ""
         structnme     = structt["name"]
         fields        = structt["body"]
         parentArgs    = ""
@@ -414,9 +453,9 @@ class CcodeGenerator(BaseCodeGenerator):
         if not copyToBuff:
             s += "          "+self.intTypeName +" pos    = 0;\n"
             s += "    uint8_t   "+self.packBuffName+"["+self.packBuffName+"Len];\n"
-    #s += self.makeClassMemberList(structt)
+        #s += self.makeClassMemberList(structt)
         else:
-            s += "    if ("+self.packBuffName+"Len > bufSize) return "+self.constErrBuffShort+";   // buffer to small\n"
+            s += "    if ("+self.packBuffName+"Len > bufSize) return "+self.constErrBuffShort+";   "+self.makeLineComment("buffer to small")
         if "parentName" in structt:
             # fill in the inherited data from the parent
             prn           = structt["parentName"]
@@ -438,6 +477,8 @@ class CcodeGenerator(BaseCodeGenerator):
         s += "\n} // end\n"
         return s
     def genUnpackFun(self,structt,callParentUnpack=False,msgIdArg = False,namePrefix = ""):
+        # determine if the function should be defined 
+        if not self.isFuncRequired(structt,"UNPACK","C") : return ""
         structnme     = structt["name"]
         fields        = structt["body"]
         parentArgs    = ""
@@ -455,10 +496,10 @@ class CcodeGenerator(BaseCodeGenerator):
                 s += "    pos += "+self.makeFunName(structt,"",funname,args = "buff,pos") + ";\n"
             else:
                 #s += "    if ("+self.packBuffName+"Len > bufSize) return 0;   // buffer to small\n"
-                s += self.genPackFields(parentStruct)
+                s += self.genUnpackFields(parentStruct)
 
         #-- build the assignment of the data fields to the buffer
-        s += self.genPackFields(structt)
+        s += self.genUnpackFields(structt)
         # if not copyToBuff:
         #     s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
         #     s += ", pos);\n"
@@ -499,7 +540,7 @@ class CcodeGenerator(BaseCodeGenerator):
     #     return s
 
     def genProcessMsgDetail(self,structt):
-        s  = "      // unpack each field into a variable\n"
+        s  = "      "+self.makeLineComment( "unpack each field into a variable")
          #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
         s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False ,inclArrLen =True )
         s1 = ""
@@ -508,7 +549,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s  += s1.replace("\n","\n      ")
         s += "if (pos > len) "
         s += "   {\n        // error\n        "+self.errorHandlerName+'("Message '+structt['name']+' to short");\n        return -2;\n      }\n'
-        s += "      // call the (external user) defined function with the unpacked data\n"
+        s += "      "+ self.makeLineComment("call the (external user) defined function with the unpacked data")
         s += "      "+ self.funcProcessFunPrefix + structt["name"] +"("
         s += self.makeCallFunArgListAll(structt)
         s += ");\n"
@@ -570,6 +611,8 @@ class CcodeGenerator(BaseCodeGenerator):
         return self.codeCommentLineStart + comment +"\n"
     def makeLineCommentDivider(self):
         return self.makeLineComment("---------------------------------------")
+    def makeLineCommentDivider2(self):
+        return self.makeLineComment("=======================================")
     def makeConstDecl(self,vname,vval):
         return "#define " + vname.ljust(15) + " " +vval+ "\n"
     def genAuxDef(self):
@@ -621,6 +664,9 @@ class CcodeGenerator(BaseCodeGenerator):
             nn = ""
             s += self.genUnpackFunDecl(structt,namePrefix = nn ) #,msgIdArg = msgIdArg,namePrefix = namePrefix)
             s += ";\n"
+            s += self.genPackFunDecl(structt,namePrefix = nn)
+            s += ";\n"
+            
             #s += self.genStructDeclBegin(st['name'])
             #s += self.genStructVarDecls(st)
             #s += self.genStructDeclEnd(st['name'])
@@ -629,9 +675,9 @@ class CcodeGenerator(BaseCodeGenerator):
     def genAll(self,hfilename,cfilename= "xxxx.c"):
         sh  = ""
         sh += self.genFileHeader(hfilename)
-        ddd = "__"+hfilename.upper().replace(".","_").replace("/","_") +"__"
-        sh += "#ifndef "+ddd +"\n"
-        sh += "#define "+ddd +"\n"
+        hprot = "__"+hfilename.upper().replace(".","_").replace("/","_") +"__"
+        sh += "#ifndef "+hprot +"\n"
+        sh += "#define "+hprot +"\n"
         sh += annotateDict.get('c_includes',"")
         sh += self.genAuxDef()
         sh += self.makeLineCommentDivider()
@@ -641,13 +687,15 @@ class CcodeGenerator(BaseCodeGenerator):
         sh += self.makeLineComment("Function declarations")
         sh += self.makeLineCommentDivider()
         sh += self.genFuncPrototypes()
-        sh += "#endif  // "+ddd +"\n"
+        sh += "#endif  // "+hprot +"\n"
+        
         sc  = "// C code \n"
         sc += '#include "'+hfilename +"\n"
         sc += annotateDict.get('c_includes',"")
         sc += annotateDict.get('c_code',"")
         for st in structList:
             sc += self.genPackFun( st) +"\n"
+            sc += self.genUnpackFun( st) +"\n"
         sc += self.genProcessMsgFuns()
         return sh,sc
 
@@ -689,8 +737,9 @@ class OOcodeGenerator(CcodeGenerator):
         return s
     def genClassImplementation(self,struct):
         parent = struct.get("parentName",None)
-        s  = "\n======================================\n// Class "+struct["name"] + " impementation"
-        s += "\n--------------------------------------\n"
+        s  = self.makeLineCommentDivider2()
+        s += self.makeLineComment( "Class "+struct["name"] + " implementation")
+        s += self.makeLineCommentDivider()
         # generate the serialze and deserialize functions for the struct
         s += self.genPackFun(struct,namePrefix = struct['name']+"::")
         s += self.genUnpackFun(struct,namePrefix = struct['name']+"::",callParentUnpack=True)
@@ -857,7 +906,11 @@ class MarkdownGenerator(CcodeGenerator):
 class OOpythonGenerator(OOcodeGenerator):
     def __init__(self):
         self.typeTable1           = {"bool":"bool","enum8":"uint8_t","char":"char","string":"String"}
-        self.codeCommentLineStart = "# "
+        self.codeCommentStart    = "''' "
+        self.codeCommentEnd      = " '''"
+        self.codeCommentLineStart= "# "
+        self.doxPre              = "\n    :"         # pydoc prefix
+        self.doxPost             = ":"         # pydoc prefix
         #typeTable2           = {"string":"","zstring":"char","ustring":"wchar","uzstring":"wchar"}
     def lookupType(self,vartype):  
         return ""

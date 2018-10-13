@@ -1,5 +1,5 @@
 @name       =  "GGCommsDefinition"
-@version    =  "1.0-1"
+@version    =  "1.0-2"
 @copyright  =  "Copyright OttoES (2018)"
 @doc_title  =  "Greatguide Communications Protocol Definition"
 @doc_header =  "BXB definition document"
@@ -19,6 +19,9 @@ void testfun(void)
    dosomething();
 } // end test
 '''
+
+# this is a C annotation to call a function (DATA_storein this case) at the end of the pack function 
+@C_PACK_CALL = "DATA_store"
 
 /* A list of all the commands. Note that all commands are send to a spesific 
    address except the broadcast command. Most commands have an acknowladge

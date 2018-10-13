@@ -24,33 +24,33 @@ Annotations are not stricly part of the definitin but mainly used to pass data d
 These are comments that are only relevant to the BinXbuff definition or i can be used to temporarily ignore a part of a definition. These comments start with '#' and end at the end of the line.
 
 e.g.
-''' # this is a comment
-'''
+```# this is a comment
+```
 ## Documentation Comments 
 Documentation comment  are comments tha explain the data stream. These comment follow the C/CPP style comments and can be used by a documentation generator to generate documentation for the protocol.
 
 e.g.
-'''
+```
 /* 
    This comment explains the message definiton below 
  */
 struct msg {
   int16   var;    // this comment goes with the var 
 } 
-'''
+```
 
 ## Enumeration
 Most protocols have a lot of tags with numeric values that have special meaning. BinXbuff therefore allow the definition of these tags with their assosiated values. (Note that in the structure definitions these enums are declared with a spesific byte size, e.g. enum16)
 
 e.g.
-'''
+```
 enum Gender {
     UNKNOWN = 0;    
     MALE    = 1;   // set as male
     FEMLE   = 0x2;   // set as female
     OTHER   = 0x3;   // if a person identifies with a different gender 
 }
-''' 
+``` 
 ## Structure Definitions
 The struture definition declares the final byte layout. The definition is similar to the sructure definition used in C or definition of messages in Protobuff. The main characteristic is that each field in the structure is defined as exacly how many bytes it occupies. 
 

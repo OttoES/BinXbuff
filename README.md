@@ -85,9 +85,29 @@ struct msg3 {
   uint8    var5;     
 } 
 ```
+### Structures with common Base (inheretance)
+In most cases where we use serialization, the messages share a common header which at least defines the length and a message identifier. This senario can be defined in BinXbuff using a base structure  which the other structures share (inheretance in object orientated termonology). Here is a simple example:
+```C
+struct msgHeaded {
+  enum8    Command msgId;
+  uint16           msgLen;
+} 
+
+struct msgA headedby msgHeader {
+  uint32  data;
+}
+
+struct msgB headedby msgHeader {
+  uint32          userInfo;
+  uint16          userLen;
+  enum8    Gender gender;
+}
+
+```
+
 
 ### Endianess
-All fields are little endian by default. If a value should be big endian it can be annotated with __@BE__ to indicate it:
+All fields are little endian by default. If a value should be big endian it can be annotated with @BE to indicate this:
 ```C
 struct msg4 {
   uint32    var6 @BE;     
@@ -95,10 +115,12 @@ struct msg4 {
 ```
 
 # Specialize Annotations
-Annotations are use to aid in the documentation an code generation. Annotation start with the __@__ symbol. If annotations are aimed at a spesific code generator, the generator name will normally be used a a prefix just after the @ symbol, e.g. @c_xxx, @py_xxxx, @doc_xxxx, @cpp_xxx, etc,
+Annotations are use to aid in the documentation an code generation. Annotation start with the __@__ symbol. 
+
+If annotations are aimed at a spesific code generator, the generator name will normally be used as a prefix just after the @ symbol, e.g. @c_xxx, @py_xxxx, @doc_xxxx, @cpp_xxx, etc.
 
 ## Common Annotations
-The following annotations contain usefull information and is used by most generators to document the code.
+The following annotations contain usefull information and is used by most generators to document the code. It is suggested that they should always be defined.
 
 ```
 @name       =  "Define Device Messages"
@@ -107,7 +129,7 @@ The following annotations contain usefull information and is used by most genera
 ```
 
 ## Documentation Annotations
-These tas are used by the document generator and should be self explanatary.
+These annotation tags are used by the document generator and should be self explanatary.
 ```
 @doc_title  =  "Communications Protocol Definition"
 @doc_header =  "BXB definition document"
@@ -116,3 +138,51 @@ These tas are used by the document generator and should be self explanatary.
 
 ```
 
+## Language Spesfic Annotations
+As mentioned, annotations can be aimed a a spesifc generated language. Some of the annotations can also be aimed only at a spesific structure for a spesific language.
+
+## C spesific Annotations
+The C code generator is spesifically aimed at embedded processors with limited memory. 
+Furtheremore memory allocation is in general not recommended on embedded processors (with good reason). To support some variations of the code generated the following annotations will change the code generated:
+
+### User Function Called in Pack
+By default the pack function will simply pack all bytes in a buffer send as argument. An alternavive is that the pack function allocates the buffer and call a function with the byte buffer using the C annotation , __@c_call_in_pack__, to call a C function (__DATA_store__ in this case) at the end of the pack function. The function have fixed return type and arguents:
+```
+int  Data_store(uint8_t buff, uin16_t buffLen);
+```
+It is suggested that the return value indicates the number of bytes consumed when positive and indicates an error if negative but these returns are not checked and it is therefore up to the user how these values are inerpreted. 
+e.g.
+```
+@c_call_in_pack = "DATA_store"
+
+struct DemoIntlFuncCall 
+@c_call_in_pack = "DATA_transmit"
+{
+   uint16    vxx1;
+   uint32    vxx2;
+}
+```
+
+Default pack code generated without __@c_call_in_pack__ annotation:
+```C
+
+```
+
+Code generaed with __@c_call_in_pack__ :
+
+```C
+int  DEMOINTLFUNCCALL_packMsg(uint16_t vxx1,uint32_t vxx2)
+{
+    const int  buffLen = 2+4;
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
+    buff[pos++] = (uint8_t)vxx1;
+    buff[pos++] = (uint8_t)(vxx1>>8);
+    buff[pos++] = (uint8_t)vxx2;
+    buff[pos++] = (uint8_t)(vxx2>>8);
+    buff[pos++] = (uint8_t)(vxx2>>16);
+    buff[pos++] = (uint8_t)(vxx2>>24);
+    return  DATA_transmit(buff, pos);
+} // end
+
+```

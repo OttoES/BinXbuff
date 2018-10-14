@@ -15,11 +15,12 @@ void testfun(void)
  @return if > 0    position in array of last extracted data
  @return if < 0    error in data stream 
  */
-int  MSGHEADER_packMsg(uint8_t  buff[],int  pos, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr)
+int  MSGHEADER_packMsg(uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr)
 {
     static const int  MSG_BASE = (int ) (TRUE);
     const int  buffLen = 4+1+1+1+1+2+2+2;
-    if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   // buffer to small
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
     //  this is a fixed assigned field
     static const uint32 __magic = (uint32) (0xEFBE0D90);
     //  it is faster to copy byte by byte than calling memcpy()
@@ -42,7 +43,7 @@ int  MSGHEADER_packMsg(uint8_t  buff[],int  pos, uint8_t destAddr,uint8_t source
     int16_t   __crc16 += CalcCRC16__crc16(buff, 4,4+1+1+1+1+2+2);
     buff[pos++] = (uint8_t)__crc16;
     buff[pos++] = (uint8_t)(__crc16>>8);
-    return  pos;
+    return  CallStoreSendBuffer(buff, pos);
 
 } // end
 
@@ -78,13 +79,14 @@ pos +=2;
  @return if > 0    position in array of last extracted data
  @return if < 0    error in data stream 
  */
-int  READMSG_packMsg(uint8_t  buff[],int  pos, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,uint8_t subCmd,uint16_t seqNr)
+int  READMSG_packMsg(uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,uint8_t subCmd,uint16_t seqNr)
 {
     static const int  MSG_ID = (int ) (CMD_READ);
     static const int  MSG_LEN = (int ) (0);
     static const int  IS_MSG = (int ) (0x55);
     const int  buffLen = 4+1+1+1+1+2+2+2+ 1+2+2+2;
-    if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   // buffer to small
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
     //  this is a fixed assigned field
     static const uint32 __magic = (uint32) (0xEFBE0D90);
     //  it is faster to copy byte by byte than calling memcpy()
@@ -117,7 +119,7 @@ int  READMSG_packMsg(uint8_t  buff[],int  pos, uint8_t destAddr,uint8_t sourceAd
     int16_t   __crc16 += CalcCRC16__crc16(buff, 4,4+1+1+1+1+2+2);
     buff[pos++] = (uint8_t)__crc16;
     buff[pos++] = (uint8_t)(__crc16>>8);
-    return  pos;
+    return  CallStoreSendBuffer(buff, pos);
 
 } // end
 
@@ -163,13 +165,14 @@ pos +=2;
  @return if > 0    position in array of last extracted data
  @return if < 0    error in data stream 
  */
-int  READMSGREPLY_packMsg(uint8_t  buff[],int  pos, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,infoLog_t log[])
+int  READMSGREPLY_packMsg(uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,infoLog_t log[])
 {
     static const int  CASE = (int ) (44);
     static const int  MSG_ID = (int ) (CMD_READ_REPLY);
     static const int  MSG_COND = (int ) ((subCmd == DINFO_EVENT_LOG)  );
     const int  buffLen = 4+1+1+1+1+2+2+2+  (10)*-100000+2;
-    if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   // buffer to small
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
     //  this is a fixed assigned field
     static const uint32 __magic = (uint32) (0xEFBE0D90);
     //  it is faster to copy byte by byte than calling memcpy()
@@ -196,7 +199,7 @@ int  READMSGREPLY_packMsg(uint8_t  buff[],int  pos, uint8_t destAddr,uint8_t sou
     int16_t   __crc16 += CalcCRC16__crc16(buff, 4+1+1+1+1+2+2+2+,4+1+1+1+1+2+2+2+  (10)*-100000);
     buff[pos++] = (uint8_t)__crc16;
     buff[pos++] = (uint8_t)(__crc16>>8);
-    return  pos;
+    return  CallStoreSendBuffer(buff, pos);
 
 } // end
 
@@ -236,10 +239,11 @@ pos +=2;
  @return if > 0    position in array of last extracted data
  @return if < 0    error in data stream 
  */
-int  INFOLOG_packMsg(uint8_t  buff[],int  pos, uint8_t etype,uint8_t seatNr,uint8_t seatLeftAux1,uint8_t seatRightAux1,uint32_t res)
+int  INFOLOG_packMsg(uint8_t etype,uint8_t seatNr,uint8_t seatLeftAux1,uint8_t seatRightAux1,uint32_t res)
 {
     const int  buffLen = 1+1+1+1+4;
-    if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   // buffer to small
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
     buff[pos++] = (uint8_t)etype;
     buff[pos++] = (uint8_t)seatNr;
     buff[pos++] = (uint8_t)seatLeftAux1;
@@ -249,7 +253,7 @@ int  INFOLOG_packMsg(uint8_t  buff[],int  pos, uint8_t etype,uint8_t seatNr,uint
     buff[pos++] = (uint8_t)(res>>8);
     buff[pos++] = (uint8_t)(res>>16);
     buff[pos++] = (uint8_t)(res>>24);
-    return  pos;
+    return  CallStoreSendBuffer(buff, pos);
 
 } // end
 
@@ -265,6 +269,63 @@ pos +=4;
 
 } // end
 
+
+/* 
+ @param buff[]     buffer into which data should be packed 
+ @param pos        start position in buffer 
+ @return if > 0    position in array of last extracted data
+ @return if < 0    error in data stream 
+ */
+int  SETPROFILE_packMsg(uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,char surname[],uint8_t fieldvarname,uint8_t gender,int8_t dlen,CRC16_t hdrCrc2,char addit[])
+{
+    static const int  MSG_ID = (int ) (0x1155);
+    static const int  ARRLEN = (int ) (10);
+    const int  buffLen = 4+1+1+1+1+2+2+2+ 4+ (20)*1+1+1+1+2+ (dlen)*1+-100000;
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
+    //  this is a fixed assigned field
+    static const uint32 __magic = (uint32) (0xEFBE0D90);
+    //  it is faster to copy byte by byte than calling memcpy()
+    buff[pos++] = (uint8_t)__magic;
+    buff[pos++] = (uint8_t)(__magic>>8);
+    buff[pos++] = (uint8_t)(__magic>>16);
+    buff[pos++] = (uint8_t)(__magic>>24);
+    buff[pos++] = (uint8_t)destAddr;
+    buff[pos++] = (uint8_t)sourceAddr;
+    //  this is a fixed assigned field
+    static const enum8 cmd = (enum8) (CMD_ID);
+    buff[pos++] = (uint8_t)cmd;
+    buff[pos++] = (uint8_t)subCmd;
+    //  this is a fixed assigned field
+    static const uint16 len = (uint16) (MSG_LEN);
+    buff[pos++] = (uint8_t)len;
+    buff[pos++] = (uint8_t)(len>>8);
+    buff[pos++] = (uint8_t)seqNr;
+    buff[pos++] = (uint8_t)(seqNr>>8);
+    int16_t   __crc16 += CalcCRC16__crc16(buff, 4,4+1+1+1+1+2+2);
+    buff[pos++] = (uint8_t)__crc16;
+    buff[pos++] = (uint8_t)(__crc16>>8);
+    //  this is a fixed assigned field
+    static const int32 id = (int32) (1);
+    //  it is faster to copy byte by byte than calling memcpy()
+    buff[pos++] = (uint8_t)id;
+    buff[pos++] = (uint8_t)(id>>8);
+    buff[pos++] = (uint8_t)(id>>16);
+    buff[pos++] = (uint8_t)(id>>24);
+    memcpy(buff,surname,1*20);
+    buff[pos++] = (uint8_t)fieldvarname;
+    buff[pos++] = (uint8_t)gender;
+    buff[pos++] = (uint8_t)dlen;
+    int16_t   hdrCrc2 += CalcCRC16hdrCrc2(buff, 4+1+1+1+1+2+2+2+ 4+ (20)*1+1+1+1+2+ (dlen)*1+-100000,4+1+1+1+1+2+2+2+ 4+ (20)*1+1+1+1);
+    buff[pos++] = (uint8_t)hdrCrc2;
+    buff[pos++] = (uint8_t)(hdrCrc2>>8);
+    memcpy(buff,addit,1*dlen);
+    //  this is a fixed assigned field
+    static const zstring __email = (zstring) ("eeeeee");
+    pos    += BIN_callZstring(buff, pos,__email);
+    return  CallStoreSendBuffer(buff, pos);
+
+} // end
 
 int  SETPROFILE_unpackMsg(uint8_t  buff[],int  len )
 {
@@ -303,6 +364,39 @@ pos +=2;
     //  this is a fixed assigned field
     static const zstring __email = (zstring) ("eeeeee");
     pos    += BIN_callZstring(buff, pos,__email);
+
+} // end
+
+
+/* 
+ @param buff[]     buffer into which data should be packed 
+ @param pos        start position in buffer 
+ @return if > 0    position in array of last extracted data
+ @return if < 0    error in data stream 
+ */
+int  DEMOINTLFUNCCALL_packMsg(uint16_t vxx1,uint32_t vxx2)
+{
+    const int  buffLen = 2+4;
+          int  pos    = 0;
+    uint8_t   buff[buffLen];
+    buff[pos++] = (uint8_t)vxx1;
+    buff[pos++] = (uint8_t)(vxx1>>8);
+    //  it is faster to copy byte by byte than calling memcpy()
+    buff[pos++] = (uint8_t)vxx2;
+    buff[pos++] = (uint8_t)(vxx2>>8);
+    buff[pos++] = (uint8_t)(vxx2>>16);
+    buff[pos++] = (uint8_t)(vxx2>>24);
+    return  CallStoreSendBuffer(buff, pos);
+
+} // end
+
+int  DEMOINTLFUNCCALL_unpackMsg(uint8_t  buff[],int  len )
+{
+    int  pos = 0;
+    vxx1 = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+pos +=2;
+    vxx2 = (uint32_t)(buff[pos] + (buff[pos+1]<<8) + (((uint32_t)buff[pos+2])<<16) + (((uint32_t)buff[pos+3])<<24)) );
+pos +=4;
 
 } // end
 

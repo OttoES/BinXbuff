@@ -20,8 +20,10 @@ void testfun(void)
 } // end test
 '''
 
-# this is a C annotation to call a function (DATA_storein this case) at the end of the pack function 
-@C_PACK_CALL = "DATA_store"
+# This is a C annotation to call a function (DATA_store in this case) at the end of the pack function.
+# By default the pack function will simply pack all bytes in a buffer send as argument with the pact function.
+# An alternavive is that the pack function allocate the buffer and call a function with the byte buffer.  
+@c_call_in_pack = "DATA_store"
 
 /* A list of all the commands. Note that all commands are send to a spesific 
    address except the broadcast command. Most commands have an acknowladge
@@ -79,9 +81,8 @@ struct MsgHeader
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
-@C_PACK=1
-@C_UNPACK=1
-@DD=55  @FF=44
+@c_pack=1
+@c_unpack=1
 <MSG_ID = CMD_READ> 
 <MSG_LEN=0>
 <IS_MSG = 0x55>
@@ -144,7 +145,7 @@ enum Gender {
   Line 2 of comment
 */
 struct SetProfile headedby MsgHeader 
-@C_PACK_FALSE=56
+@c_pack=FALSE
 @CV=542
 <MSG_ID = 0x1155>  <ARRLEN = 10>
 { 
@@ -157,4 +158,13 @@ struct SetProfile headedby MsgHeader
   CRC16     hdrCrc2[dest:dlen] @BE; // a message calculated crc
   char[dlen]    addit;
   zstring     __email = "eeeeee"; 
+}
+
+
+
+struct DemoIntlFuncCall 
+@c_call_in_pack = "DATA_transmit"
+{
+   uint16    vxx1;
+   uint32    vxx2;
 }

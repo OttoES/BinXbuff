@@ -47,8 +47,8 @@ def addToAnnotationDict(annotateName,annotate):
     annotateDict[annotate['name']] = s
 
 
-comment       = '## ' + restOfLine
-#comment       = '#' + restOfLine
+#comment       = '## ' + restOfLine
+comment       = '#' + restOfLine
 CMNT          = Optional(cStyleComment("comment"))
 CMNT2         = Optional( (Suppress('//') + restOfLine("comment2")) )  #Optional(cppStyleComment("comment2"))
 STRQ3         = QuotedString("'''", multiline=True)

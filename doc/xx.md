@@ -1,7 +1,7 @@
 
 # BXB definition document
 
-### GGCommsDefinition version 1.0-1
+### GGCommsDefinition version 1.0-2
 ___
 
 ## Intoduction
@@ -106,10 +106,8 @@ Fields in this structure
 
 
 **Annotations**
-* C_PACK  =  
-* C_UNPACK  =  
-* DD  =  
-* FF  =  
+* c_pack  =  
+* c_unpack  =  
 
 
 **Structure locals constants**
@@ -174,7 +172,7 @@ Fields in this structure
 
 
 **Annotations**
-* C_PACK_FALSE  =  
+* c_pack  =  
 * CV  =  
 
 
@@ -198,3 +196,17 @@ Structure inherits all fields from **MsgHeader** and add these
 |addit|char|dlen||
 |__email|zstring|-||
 |Total| length|variable|4+1+1+1+1+2+2+2+ 4+ (20)*1+1+1+1+2+ (dlen)*1+-100000|
+
+### DemoIntlFuncCall
+
+
+**Annotations**
+* c_call_in_pack  =  
+Fields in this structure
+
+
+|Field|Type|Array|Comment|
+|------|-----|-----|------------------------------|
+|vxx1|uint16|-||
+|vxx2|uint32|-||
+|Total| length|6|2+4|

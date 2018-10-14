@@ -75,10 +75,17 @@ class BaseCodeGenerator:
     typeTableLoc        = {"CRC8":"uint8","CRC16":"uint16","CRC32":"uin32","MSG_ID16":"uint16"}
     typeSizeTable       = {"char":1,"bool":1,"wchar":2,"byte":1}
     packBuffName        = "buff"  
-    packBuffType        = "char"  
+    packBuffType        = "char"
+    # define the languages (use the file extension)
+    LANG_C              = "c"  
+    LANG_CPP            = "cpp"  
+    LANG_PY             = "py"  
+    LANG_JAVA           = "java"  
     def __init__(self,bxbDef= None):
         if bxbDef is not None:
             pp = parser.parseString(bbxDef)
+        # set the language
+        self.LANG = "?"
     def pprint(self):
         pprint(enumList)
         pprint(structList)
@@ -258,7 +265,7 @@ class BaseCodeGenerator:
                 anno = self.findInConstList(lst,annostr)
                 if anno: return True
         return False
-    def isFuncRequired(self,structt,funct,lang):
+    def oldisFuncRequired(self,structt,funct,lang):
         """Check if this function should be generated.
 
            More or less the following logic:
@@ -288,10 +295,41 @@ class BaseCodeGenerator:
             return False
         return True
 
+    def getLocalAnno(self,structt,annotag,default=None):
+        """Find the relevant annotation if available otherwise assume a default.
+
+           More or less the following logic:
+              - look at struct annotation for this language
+              - look at struct annotation
+              - look at global language annotation
+              - look at global annottion
+        """
+        # this is the language spesific annotation tag that will overrride the general annotation
+        lannotag = self.LANG +"_"+annotag
+        # local struct annotation takes precedence, so first look at that
+        if "anno" in structt:
+            lst     = structt["anno"]
+            anno = self.findInConstList(lst,lannotag)
+            if anno: 
+                if "value" in anno:
+                    return anno['value']
+                if "string" in anno:
+                    return anno['string']
+            anno = self.findInConstList(lst,annotag)
+            if anno: return anno['value']
+        lst     = annotateDict
+        if lannotag in lst:
+            return lst[lannotag]
+        if annotag in lst:
+            return lst[annotag]
+        return default
 
     # ==================================================
 
 class CcodeGenerator(BaseCodeGenerator):
+    def __init__(self):
+        # set the language
+        self.LANG = BaseCodeGenerator.LANG_C
     def genPackFieldCode(self,f):
         tsize = self.lookupTypeSize(f["type"])
         if "arrLen" in f:  
@@ -431,9 +469,14 @@ class CcodeGenerator(BaseCodeGenerator):
         #-- build the function call
         s += self.makeFunName(structt,self.intTypeName,namePrefix+self.funcPackBaseName,args)
         return s
-    def genPackFun(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
+    def genPackFun(self,structt,msgIdArg = False,namePrefix = ""):
         # determine if the function should be defined 
-        if not self.isFuncRequired(structt,"PACK","C") : return ""
+        #if not self.isFuncRequired(structt,"pack",self.LANG) : return ""
+        ret = self.getLocalAnno(structt,"pack","TRUE")
+        if ret == "FALSE" : return ""    # function should not be generated
+        # determine if a function call in pack is defined
+        callFuncName  = self.getLocalAnno(structt,"call_in_pack","FALSE")
+        copyToBuff    = (ret == "FALSE")
         structnme     = structt["name"]
         fields        = structt["body"]
         parentArgs    = ""
@@ -469,6 +512,7 @@ class CcodeGenerator(BaseCodeGenerator):
         #     s += self.makeConsVarDecl("int",name,value)
         #-- build the assignment of the data fields to the buffer
         s += self.genPackFields(structt)
+        # see if a custom funcion call defined 
         if not copyToBuff:
             s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
             s += ", pos);\n"
@@ -478,7 +522,8 @@ class CcodeGenerator(BaseCodeGenerator):
         return s
     def genUnpackFun(self,structt,callParentUnpack=False,msgIdArg = False,namePrefix = ""):
         # determine if the function should be defined 
-        if not self.isFuncRequired(structt,"UNPACK","C") : return ""
+        ret = self.getLocalAnno(structt,"unpack","TRUE")
+        if ret == "FALSE" : return ""    # function should not be generated
         structnme     = structt["name"]
         fields        = structt["body"]
         parentArgs    = ""
@@ -702,6 +747,9 @@ class CcodeGenerator(BaseCodeGenerator):
 
 class OOcodeGenerator(CcodeGenerator):
     typeTable1      = {"bool":"bool","enum8":"uint8_t","char":"char","string":"String"}
+    def __init__(self):
+        # set the language
+        self.LANG = BaseCodeGenerator.LANG_CPP
     def genClassDeclBegin(self,structname,parentstruct= None):
         s = "class "+structname+" "
         if parentstruct is not None: 
@@ -912,6 +960,8 @@ class OOpythonGenerator(OOcodeGenerator):
         self.doxPre              = "\n    :"         # pydoc prefix
         self.doxPost             = ":"         # pydoc prefix
         #typeTable2           = {"string":"","zstring":"char","ustring":"wchar","uzstring":"wchar"}
+        # set the language
+        self.LANG = BaseCodeGenerator.LANG_PY
     def lookupType(self,vartype):  
         return ""
     def genEnumStart(self,enm):

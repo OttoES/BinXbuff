@@ -22,6 +22,14 @@ def addIndent(s):
         return s.replace("\n", "\n   ")
     s = "    " + s.replace("\n", "\n   ")
     return s
+
+def convertCamelToSnake(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).upper()
+
+def convertSnakeToCamelCase(column):
+   first, *rest = column.split('_')
+   return first + ''.join(word.capitalize() for word in rest)
     
 def parseBxbDefFile(fileName):
     parser.parseFile(fileName)
@@ -32,9 +40,9 @@ def parseBxbDefFile(fileName):
 
 def parseBxbDefStr(defStr):
     parser.parseString(defStr)
-    docgen = MarkdownGenerator() 
-    s = docgen.genAll()
-    print(s)
+    # docgen = MarkdownGenerator() 
+    # s = docgen.genAll()
+    # print(s)
 
 def ppprint():
     pprint(enumList)
@@ -48,7 +56,7 @@ class BaseCodeGenerator:
     codeCommentEnd      = " */"
     codeCommentLineStart= "// "
     doxPre              = "\n @"         # doxygen prefix
-    doxPost             = " "         # doxygen prefix
+    doxPost             = " "            # doxygen postfix
     typePostfix         = "_t"
     funcNamePrefix      = "BIN_"
     funcPackCallPrefix  = "BIN_call"
@@ -186,7 +194,8 @@ class BaseCodeGenerator:
         s = ""
         if isPrivate:      s+= self.privateFuncDecl
         if isSingletonFun: s+= self.singletonFuncDecl
-        nn = structt['name'].upper() + "_" + funName
+        #nn = structt['name'].upper() + "_" + funName
+        nn = convertCamelToSnake(structt['name']) + "_" + funName
         s += retType + " " + nn + "(" + args + ")"
         return s
     def makeDeclFunArgList(self,structt):
@@ -360,20 +369,13 @@ class CcodeGenerator(BaseCodeGenerator):
             ## this is only valid if the endianess is the same for multibyte types !!!!
             return "memcpy("+f["name"] +","+bufname+","+lenstr + ");\n"
         if tsize == 1:
-            return f["name"] + " = ("+f["type"]+ ")" + bufname+"[pos++] " + ";\n"
+            return  f["name"] + " = ("+f["type"]+ ")" + bufname+"[pos++] " + ";\n"
         elif tsize == 2: 
             # this is  little endian
-            return f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8)" +  ");\npos +=2;\n"
-
+            return  f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8)" +  ");\npos +=2;\n"
         elif tsize == 4: 
-            # # this is stored in little endian
-            # s  = "// it is faster to copy byte by byte than calling memcpy()\n"
-            # s += "    "+ self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
-            # s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>8);\n"
-            # s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>16);\n"
-            # return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+ f["name"] + ">>24);\n"
             # this is  little endian
-            return f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8) + (((uint32_t)"+ bufname+"[pos+2])<<16) + (((uint32_t)"+ bufname+"[pos+3])<<24)) " +  ");\npos +=4;\n"
+            return  f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8) + (((uint32_t)"+ bufname+"[pos+2])<<16) + (((uint32_t)"+ bufname+"[pos+3])<<24)) " +  ");\npos +=4;\n"
         s  = "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
         s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s
@@ -398,6 +400,7 @@ class CcodeGenerator(BaseCodeGenerator):
     def genUnpackFields(self,structt):    
         fields    = structt["body"]
         s = ""
+        s1  = "    "
         for f in fields:
             if f["type"] == "CRC16":
               p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
@@ -405,11 +408,17 @@ class CcodeGenerator(BaseCodeGenerator):
               s += "    ??int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.packBuffName+", "+p1 + "," + p2 + ");\n" 
             #-- check if it is assigned a value
             if "value" in f:
-                s += "    "+self.makeLineComment(" this is a fixed assigned field")
-                s += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
-            s += "    " + self.genUnpackFieldCode(f) 
+                s1 += "    "+self.makeLineComment(" this is a fixed assigned field")
+                s1 += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
+            s1 += self.genUnpackFieldCode(f) 
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
+        # fixup the indentation
+        s += s1.replace("\n","\n    ")
+        # call the user function
+        funname = self.getLocalAnno(structt,"call_after_unpack",default = "userfun")
+        funname = cleanstr(funname)
+        s += funname + "(" +self.packBuffName +", pos);\n"
         return s 
     # includeField inidcate if the field named fieldName shold be included in the position calculations    
     #def genPackFieldPosCalc(self,fields,fieldName,includeField):    
@@ -446,7 +455,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s     = self.makeFunName(structt,structt['name'],namePrefix+self.funcCreateFromBufName,args)
         return s
     def genUnpackFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
-        args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" len "
+        args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" bufize "
         s     = self.makeFunName(structt,self.intTypeName,namePrefix+self.funcUnpackBaseName,args)
         return s
     def genPackFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
@@ -463,7 +472,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s += "\n" + self.codeCommentEnd +"\n"
         #-- build the argument list for the function
         if copyToBuff:
-            args = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" pos, "
+            args = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" bufSize, "
         else: args = ""
         args += self.makeDeclFunArgList(structt)
         #-- build the function call
@@ -475,12 +484,12 @@ class CcodeGenerator(BaseCodeGenerator):
         ret = self.getLocalAnno(structt,"pack","TRUE")
         if ret == "FALSE" : return ""    # function should not be generated
         # determine if a function call in pack is defined
-        callFuncName  = self.getLocalAnno(structt,"call_in_pack","FALSE")
-        copyToBuff    = (ret == "FALSE")
-        structnme     = structt["name"]
-        fields        = structt["body"]
-        parentArgs    = ""
-        s  = self.genPackFunDecl(structt,copyToBuff=copyToBuff,msgIdArg = msgIdArg,namePrefix = namePrefix)
+        callFuncName          = self.getLocalAnno(structt,"call_in_pack","FALSE")
+        localBuffAndUserFunct = (callFuncName != "FALSE")
+        structnme             = structt["name"]
+        fields                = structt["body"]
+        parentArgs            = ""
+        s  = self.genPackFunDecl(structt,copyToBuff= not localBuffAndUserFunct,msgIdArg = msgIdArg,namePrefix = namePrefix)
         s += "\n{\n"
         #-- generate constant declaraions for the struct local constant assignments
         locConst = structt.get("localConst",[])    
@@ -493,8 +502,9 @@ class CcodeGenerator(BaseCodeGenerator):
         s += "    const "+self.intTypeName +" "+self.packBuffName+"Len = " + structLen
         #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
         s += ";\n"
-        if not copyToBuff:
-            s += "          "+self.intTypeName +" pos    = 0;\n"
+        s += "          "+self.intTypeName +" pos    = 0;\n"
+        if localBuffAndUserFunct:
+            #s += "          "+self.intTypeName +" pos    = 0;\n"
             s += "    uint8_t   "+self.packBuffName+"["+self.packBuffName+"Len];\n"
         #s += self.makeClassMemberList(structt)
         else:
@@ -513,8 +523,9 @@ class CcodeGenerator(BaseCodeGenerator):
         #-- build the assignment of the data fields to the buffer
         s += self.genPackFields(structt)
         # see if a custom funcion call defined 
-        if not copyToBuff:
-            s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
+        if localBuffAndUserFunct:
+            #s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
+            s += "    return  "+callFuncName+"("+self.packBuffName
             s += ", pos);\n"
         else:
             s += "    return  pos;\n"
@@ -706,7 +717,7 @@ class CcodeGenerator(BaseCodeGenerator):
             s += self.makeLineComment("@return if > 0 : position in array of last extracted data")
             s += self.makeLineComment("@return if < 0 : error in data stream (-4: too short, -23: CRC error")
             #nn = structt['name'].upper() + "_"
-            nn = ""
+            nn = "" #convertCamelToSnake(structt["name"])
             s += self.genUnpackFunDecl(structt,namePrefix = nn ) #,msgIdArg = msgIdArg,namePrefix = namePrefix)
             s += ";\n"
             s += self.genPackFunDecl(structt,namePrefix = nn)

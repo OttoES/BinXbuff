@@ -10,6 +10,7 @@ def saveToFile(fname,s):
 
 def mainTest2():        
     pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")
+    #pp = parseBxbDefFile("./src/BXB-parser-test-01.bxb")
     ppprint()
     docgen = MarkdownGenerator() 
     s = docgen.genAll()
@@ -31,5 +32,5 @@ def mainTest2():
 
 
 if __name__ == "__main__":
-    # execute only if run as a script
+    # execute only if run as a   script
     mainTest2()

@@ -1,6 +1,16 @@
 # BinXbuff
-While still in its initial phase,the aim of this project is to take a definition file that specifies a message on 
-a byte level and translates this into code. 
+While still in its initial phase,the aim of this project is to take a definition file that specifies a message on  a byte level and translates this into code. 
+
+The definion parser and code generators were written in Python using pyparsing.
+
+Current state: __Definition parser: done__ 
+__C code generator__ : busy
+__Documentation generator__ : busy
+__C++ code generator__ : busy
+__Python parser generator__ : busy
+__Java generator__ : not started
+
+
 This tool can generate C, java and python to serialize and deserialize a byte stream of data. The byte stream is 
 normally either data that must be stored on a file or serial data, e.g. via RS232 or an RF link.  
 
@@ -15,7 +25,12 @@ In addition to the features above, a program that can translate between json and
 
 # Protocol definition
 
-The definition can contain the following elements
+Terminology:
+- *struct* (and sometimes message aka protobuff) is used to decribe the byte sequence
+- *pack* is used to refer to the serialization of the data to a byte sequence
+- *unpack* is used to refer to the deserialization from the byte buffer to internal variables in a programming language (also the name of the function doing the deserialization)
+
+The definition contain various elements decribed below.
 
 ## Annotations
 Annotations are not stricly part of the definition but mainly used to pass data down to the code generators. Annotations can therefore be used to add information such as copyright, specifying details on code generation, etc 

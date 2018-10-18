@@ -23,7 +23,7 @@ void testfun(void)
 # This is a C annotation to call a function (DATA_store in this case) at the end of the pack function.
 # By default the pack function will simply pack all bytes in a buffer send as argument with the pact function.
 # An alternavive is that the pack function allocate the buffer and call a function with the byte buffer.  
-@c_call_in_pack = "DATA_store"
+@cpp_call_in_pack = "DATA_store"
 
 /* A list of all the commands. Note that all commands are send to a spesific 
    address except the broadcast command. Most commands have an acknowladge
@@ -95,7 +95,7 @@ struct ReadMsg headedby MsgHeader
       by the CMD_READ_ACK
     */
     uint16         seqNr;       
-    CRC16          __crc16[destAddr:seqNr]; 
+    CRC16          __dcrc16[destAddr:seqNr]; 
 }
 
 struct ReadMsgReply headedby MsgHeader
@@ -163,7 +163,8 @@ struct SetProfile headedby MsgHeader
 
 
 struct DemoIntlFuncCall 
-@c_call_in_pack = "DATA_transmit"
+@cv_call_in_pack = "DATA_transmit"
+@c_call_after_unpack = "ProcessDemoCall"
 {
    uint16    vxx1;
    uint32    vxx2;

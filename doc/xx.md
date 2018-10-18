@@ -125,7 +125,7 @@ Structure inherits all fields from **MsgHeader** and add these
 |subCmd|enum8 [read_t](#enum-read_t)|-|  |
 |len|uint16|-|  no data send with this message|
 |seqNr|uint16|-|       A sequence number assosiated with this message and returned        by the CMD_READ_ACK     |
-|__crc16|CRC16|-||
+|__dcrc16|CRC16|-||
 |Total| length|21|4+1+1+1+1+2+2+2+ 1+2+2+2|
 
 ### ReadMsgReply
@@ -201,7 +201,8 @@ Structure inherits all fields from **MsgHeader** and add these
 
 
 **Annotations**
-* c_call_in_pack  =  
+* cv_call_in_pack  =  
+* c_call_after_unpack  =  
 Fields in this structure
 
 

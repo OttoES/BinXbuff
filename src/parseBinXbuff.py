@@ -67,9 +67,13 @@ SIZE       = INT
 IDENT      = Word(alphas+"_",alphanums+"_")("name")
 #xxINT        = Regex(r"[+-]?\d+")
 
-EXPR = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
+# expression like in a formula
+EXPR       = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
+# expression but spesifically for call annotation
+CEXPR      = Word(alphanums+"_"+"&",alphanums+"_"+"+"+"-"+"/"+"*"+"="+"&")("expr")
+CIDENT     = Word(alphanums+"_",alphanums+"_")("name")
 
-LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER = map(Suppress,"{}[]()=;:@.<>")
+LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER,COMMA = map(Suppress,"{}[]()=;:@.<>,")
 
 #kwds = """message required optional repeated enum extensions extends extend 
 #          to package service rpc returns true false option import"""
@@ -122,10 +126,12 @@ typeres             = oneOf("""STRUCTLEN8 STRUCTLEN16 CRC8 CRC16 CRC32""")
 #typespec            =  typestd | typetag | typeres | ident
 arrDec              = Optional(LBRACK + EXPR("arrLen") + RBRACK)
 varEndian           = Optional("@BE",default="@LE")("endianess")
+annoCheckVal        = Optional("@CHECK")("annoCheckVal")
+#annoFunCall         = Optional("@CALL"+EQ+IDENT("funName")+LPAR+CAEXPR+COMMA+CAEXPR+RPAR)("annoFunCall") 
 
 fieldtag            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
 #fieldint            = typeint("type")  + Optional(LBRACK + EXPR("arrLen") + RBRACK)  + IDENT + Optional(EQ + EXPR("value"))
-fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value"))
+fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value")) + Optional(EQ + AT + CEXPR("callName")+LPAR+ CIDENT("arg1")+ COMMA + CIDENT("arg2") +RPAR)
 fieldstr            = typestr("type")  + IDENT + Optional(EQ + quotedString("value"))
 #fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
 fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
@@ -135,8 +141,8 @@ fieldres            = typeres("type")  + IDENT + LBRACK + IDENT("rangeStart")+CO
 
 fieldstruct         = IDENT("type") + arrDec   + IDENT
 
-rvalue              = INT | TRUE_ | FALSE_ | IDENT
-fieldDirective      = LBRACK + Group(IDENT("fid") + EQ + rvalue("fidval")) + RBRACK
+#rvalue              = INT | TRUE_ | FALSE_ | IDENT
+#fieldDirective      = LBRACK + Group(IDENT("fid") + EQ + rvalue("fidval")) + RBRACK
 ##fieldDefn           = (( REQUIRED_ | OPTIONAL_ | ARRAY_ )("fieldQualifier") - 
 ##                      typespec("typespec") + ident("ident") + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI) + Optional(CMNT2("comment2"))
 ###fieldDefn           = typespec("type") + ident + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI + Optional(CMNT2("comment2"))
@@ -144,7 +150,7 @@ field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldt
 ####fieldDefn           = CMNT + field  + SEMI + Optional(CMNT2)
 #fieldEndian         = optional("@LE"("endian") | "@BE")
 #fieldNoparam        = optional("@LE" | "@BE")
-fieldDefn           = CMNT + field  + varEndian  + SEMI + Optional(CMNT2)
+fieldDefn           = CMNT + field  + varEndian + annoCheckVal + SEMI + Optional(CMNT2)
 
 # enumDefn        ::= 'enum' ident '{' { ident '=' integer ';' }* '}'
 ##enumDefn            = CMNT + ENUM_("typespec") - ident('name') +  LBRACE + Dict( ZeroOrMore( Group(ident("name") + EQ + integer("value") + SEMI + CMNT2 ) ))('values') + RBRACE

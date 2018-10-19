@@ -3,10 +3,10 @@ import os
 
 def saveToFile(fname,s):
     os.makedirs(os.path.dirname(fname), exist_ok=True)
-    text_file = open(fname, "w")
-    text_file.write(s)
-    text_file.close()
-
+    text_file = open(fname, "w")    
+    text_file.write(s)  
+    text_file.close()   
+    
 
 def mainTest2():        
     pp = parseBxbDefFile("./src/GG-comsdef-01.bxb")

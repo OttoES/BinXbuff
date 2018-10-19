@@ -15,7 +15,7 @@ ___
 ## Enumerations
 ___
 
-### Enum cmd_t
+### Enum comnd
  A list of all the commands. Note that all commands are send to a spesific 
    address except the broadcast command. Most commands have an acknowladge
    but note:
@@ -90,12 +90,14 @@ Fields in this structure
 |__magic|uint32|-| This is a magic number that indicates the start of the message.   (This is 0x900DBEEF in bigendian format)|
 |destAddr|uint8|-|        The destination address is where the message should be send to.        Devices are allocated a fixed address. The address for the master streamer         is always 0. Seat units are each configured with ther own addresses.        Messages can be either directed to a single device or broadcasted         depending on the command. If it is a broadcast command the destination        will still be for a spesific address and that address should send CMD_BROADCAST_ACK        acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error.         When broadcasted the broadcast address is 0xFF     |
 |sourceAddr|uint8|-|  The source address.|
-|cmd|enum8 [cmd_t](#enum-cmd_t)|-|  This is the message identifier. |
+|cmd|enum8 [comnd](#enum-comnd)|-|  This is the message identifier. |
 |subCmd|uint8|-|   |
 |len|uint16|-|  the lenghth of he data |
 |seqNr|uint16|-|  A sequence number send with the request|
 |__crc16|CRC16|-|  crc use for integrity checking|
-|Total| length|14|4+1+1+1+1+2+2+2|
+|xxxxx|uint16|-||
+|__crc2|uint16|-||
+|Total| length|18|4+1+1+1+1+2+2+2+2+2|
 
 ### ReadMsg
 
@@ -126,7 +128,7 @@ Structure inherits all fields from **MsgHeader** and add these
 |len|uint16|-|  no data send with this message|
 |seqNr|uint16|-|       A sequence number assosiated with this message and returned        by the CMD_READ_ACK     |
 |__dcrc16|CRC16|-||
-|Total| length|21|4+1+1+1+1+2+2+2+ 1+2+2+2|
+|Total| length|25|4+1+1+1+1+2+2+2+2+2+ 1+2+2+2|
 
 ### ReadMsgReply
 
@@ -145,7 +147,7 @@ Structure inherits all fields from **MsgHeader** and add these
 |Parent|[MsgHeader](#msgheader)||This data prepend this structure|
 |log|infoLog [infoLog](#infolog)|10|  normally|
 |__crc16|CRC16|-|  crc use for integrity checking|
-|Total| length|variable|4+1+1+1+1+2+2+2+  (10)*-100000+2|
+|Total| length|variable|4+1+1+1+1+2+2+2+2+2+  (10)*-100000+2|
 
 ### infoLog
 
@@ -195,7 +197,7 @@ Structure inherits all fields from **MsgHeader** and add these
 |hdrCrc2|CRC16|-|  a message calculated crc|
 |addit|char|dlen||
 |__email|zstring|-||
-|Total| length|variable|4+1+1+1+1+2+2+2+ 4+ (20)*1+1+1+1+2+ (dlen)*1+-100000|
+|Total| length|variable|4+1+1+1+1+2+2+2+2+2+ 4+ (20)*1+1+1+1+2+ (dlen)*1+-100000|
 
 ### DemoIntlFuncCall
 

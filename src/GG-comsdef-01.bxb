@@ -33,7 +33,7 @@ void testfun(void)
    * the debug command is not acknowladged
    * a broadcast command is only acknowladced by one address
 */
-enum cmd_t { 
+enum comnd { 
     CMD_BROADCAST      = 0x0A;  // Broadcast 
     CMD_BROADCAST_ACK  = 0x03;  // An acknowladge if the broadcast command was sucessfull 
     CMD_READ           = 0x15;
@@ -54,7 +54,7 @@ struct MsgHeader
 <MSG_BASE=TRUE>
 {
     /* This is a magic number that indicates the start of the message. */
-    uint32  __magic = 0xEFBE0D90;   // (This is 0x900DBEEF in bigendian format)
+    uint32  __magic = 0xEFBE0D90 @CHECK;   // (This is 0x900DBEEF in bigendian format)
     /*
        The destination address is where the message should be send to.
        Devices are allocated a fixed address. The address for the master streamer 
@@ -67,12 +67,13 @@ struct MsgHeader
     */
     uint8          destAddr;   
     uint8          sourceAddr;            // The source address.
-    enum8 cmd_t    cmd    = CMD_ID;       // This is the message identifier. 
+    enum8 comnd    cmd    = CMD_ID;       // This is the message identifier. 
     uint8          subCmd;                //  
     uint16         len    = MSG_LEN;      // the lenghth of he data 
     uint16         seqNr;                 // A sequence number send with the request
     CRC16          __crc16[destAddr:seqNr]; // crc use for integrity checking
-    
+    uint16         xxxxx;
+    uint16         __crc2 = @crc16(destAddr,xxxxx) @BE;
 }  
 
 /*
@@ -95,7 +96,7 @@ struct ReadMsg headedby MsgHeader
       by the CMD_READ_ACK
     */
     uint16         seqNr;       
-    CRC16          __dcrc16[destAddr:seqNr]; 
+    CRC16          __dcrc16[destAddr:seqNr] ; 
 }
 
 struct ReadMsgReply headedby MsgHeader

@@ -124,7 +124,7 @@ class BaseCodeGenerator:
         parnt = structt["parentName"]
         return structDict[parnt]  
     def makeConsVarDecl(self,varType,varName,varVal):
-        #tt = self.lookupType(varType)
+        varType = self.lookupType(varType)
         return "static const " + varType + " "+varName  + " = ("+varType+") ("+varVal+  ");"
     def makeVarDecl(self,varType,varName,arrayLen = None):
         return genVarOnlyDecl(self,varType,varName,arrayLen = None)
@@ -283,35 +283,35 @@ class BaseCodeGenerator:
                 anno = self.findInConstList(lst,annostr)
                 if anno: return True
         return False
-    def oldisFuncRequired(self,structt,funct,lang):
-        """Check if this function should be generated.
+    # def oldisFuncRequired(self,structt,funct,lang):
+    #     """Check if this function should be generated.
 
-           More or less the following logic:
-              - look at struct annottion
-              - look at global language anotation
-              - look at global annottion
-        """
-        # local annoation takes precedence so first look at that
-        if "anno" in structt:
-            lst     = structt["anno"]
-            anno = self.findInConstList(lst,lang+"_"+funct)
-            if anno: return True
-            anno = self.findInConstList(lst,lang+"_"+funct+"_FALSE")
-            if anno: return False
-            anno = self.findInConstList(lst,funct)
-            if anno: return True
-            anno = self.findInConstList(lst,funct+"_FALSE")
-            if anno: return False
-        lst     = annotateDict
-        if lang+"_"+funct in lst:
-            return True
-        if lang+"_"+funct+"_FALSE" in lst:
-            return False
-        if funct in lst:
-            return True
-        if funct+"_FALSE" in lst:
-            return False
-        return True
+    #        More or less the following logic:
+    #           - look at struct annottion
+    #           - look at global language anotation
+    #           - look at global annottion
+    #     """
+    #     # local annoation takes precedence so first look at that
+    #     if "anno" in structt:
+    #         lst     = structt["anno"]
+    #         anno = self.findInConstList(lst,lang+"_"+funct)
+    #         if anno: return True
+    #         anno = self.findInConstList(lst,lang+"_"+funct+"_FALSE")
+    #         if anno: return False
+    #         anno = self.findInConstList(lst,funct)
+    #         if anno: return True
+    #         anno = self.findInConstList(lst,funct+"_FALSE")
+    #         if anno: return False
+    #     lst     = annotateDict
+    #     if lang+"_"+funct in lst:
+    #         return True
+    #     if lang+"_"+funct+"_FALSE" in lst:
+    #         return False
+    #     if funct in lst:
+    #         return True
+    #     if funct+"_FALSE" in lst:
+    #         return False
+    #     return True
 
     def getLocalAnno(self,structt,annotag,default=None):
         """Find the relevant annotation if available otherwise assume a default.
@@ -414,6 +414,16 @@ class CcodeGenerator(BaseCodeGenerator):
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s 
+    def translateExp(self,structt,expr):
+        # TODO: add more stuff such as expressions with keywords
+        if expr[0] == "&":  # needs to the the address of the field
+            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
+            if pres: return s1
+        if expr[-1] == "&":  # needs to the the address of the field
+            s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)    
+            if pres: return s1
+        return expr
+
     def genUnpackFields(self,structt):    
         fields    = structt["body"]
         s = ""
@@ -427,14 +437,24 @@ class CcodeGenerator(BaseCodeGenerator):
             # s1 += "// "+ f["type"] + " -> " + self.lookupFieldType(f) +    "\n"
             # check if it is assigned a value
             if "value" in f :
-                if "annoCheckVal" in f:   # sholuld the constan value be checked
+                if "annoCheckVal" in f:   # should the constant value be checked
                     s1 += self.makeLineComment(" check the field value is equal to the expected value")
                     #s1 += self.makeConsVarDecl(f["type"],"_"+f["name"],f["value"]) +"\n"
                     s1 += "if ("+f["name"] +" != "+f["value"] +") return "+self.constErrNotEqual+ ";" +"\n"
                 else:
                     s1 += self.makeLineComment(" this is an assigned value but not verified here")
                     #s1 += self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
-            #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
+            # the field is assigned to a functions call
+            if "callName" in f :
+                if "annoCheckVal" in f:   # should the constant value be checked
+                    s1 += self.makeLineComment(" check the field value is equal to the returned function value")
+                    arg1 = self.translateExp(structt,f["arg1"]); 
+                    arg2 = self.translateExp(structt,f["arg2"]); 
+                    s1 += self.makeLineComment("call user function with "+f["arg1"]+" and " +f["arg2"])
+                    funCallStr = f["callName"]+"(" +self.packBuffName +","+arg1+","+arg2 +")"
+                    #s1 += self.lookupType(varType) + " " + "ret_"+f["name"] + " = " + 
+                    s1 += self.makeConsVarDecl(f["type"],"ret_"+f["name"],funCallStr) +"\n"
+                    s1 += "if ("+ "ret_"+f["name"] +" != "+f["name"] +") return "+self.constErrNotEqual+ ";" +"\n"
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         # fixup the indentation
         s += s1.replace("\n","\n    ")
@@ -478,8 +498,16 @@ class CcodeGenerator(BaseCodeGenerator):
         s     = self.makeFunName(structt,structt['name'],namePrefix+self.funcCreateFromBufName,args)
         return s
     def genUnpackFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
+        s  = "\n"
+        # generate the comments
+        s += self.codeCommentStart
+        s += self.doxPre + "param buff[]    buffer with data to be unpacked "
+        s += self.doxPre + "param len       number of bytes in buff, must be at long enough for complete struct "
+        s += self.doxPre + "return if > 0 : position in array of last extracted data"
+        s += self.doxPre + "return if < 0 : error in data stream (-4: too short, -23: CRC error"
+        s += "\n" + self.codeCommentEnd +"\n"
         args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" bufize "
-        s     = self.makeFunName(structt,self.intTypeName,namePrefix+self.funcUnpackBaseName,args)
+        s += self.makeFunName(structt,self.intTypeName,namePrefix+self.funcUnpackBaseName,args)
         return s
     def genPackFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
         structnme     = structt["name"]
@@ -642,29 +670,45 @@ class CcodeGenerator(BaseCodeGenerator):
         s += ");\n"
         return s
 
-    def genProcessMsgFuns(self):
-        #find the base messages
-        s = ""
-        for st in structList:
-            if "localConst" in st:
-                lst     = st["localConst"]
-                bstruct = self.findInConstList(lst,"MSG_BASE")
-                # if MSG_BASE is declared, a message select and unpack is created
-                if bstruct :
-                    s += self.genSelecAndProcessMsgFun(st)            
-        return s
+    # TODO: still used??
+    # def genProcessMsgFuns(self):
+    #     #find the base messages
+    #     s = ""
+    #     for st in structList:
+    #         if "localConst" in st:
+    #             lst     = st["localConst"]
+    #             bstruct = self.findInConstList(lst,"MSG_BASE")
+    #             # if MSG_BASE is declared, a message select and unpack is created
+    #             if bstruct :
+    #                 s += self.genSelecAndProcessMsgFun(st)            
+    #     return s
 
     def genSelecAndProcessMsgFun(self,baseStructt):
         s  = "\n// This is the base message parser that should be called with\n// the byte array to be translated to a spesific message\n"
-        s  = "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
-        #s += self.singletonFuncDecl + self.lenTypeName + " " + "parseMsg(uint8_t buff[],int len) \n{\n"
-        s += self.makeFunName(baseStructt,self.intTypeName,self.funcUnpackNamePrefix, "uint8_t buff[],int len",isSingletonFun=True) + "\n{\n"
-        #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "   " + self.makeFieldListGeneric(baseStructt,inclTypes = True, seperator = ";\n   " , inclParent = False , inclConst = False,  noLastSeparater = False ,inclArrLen =True)
-        s1 = ""
-        for f in  baseStructt["body"]:
-           s1 += self.genUnpackFieldCode(f)
-        s  += s1.replace("\n","\n   ")
+        s += "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
+
+ 
+        s += self.genUnpackFunDecl(baseStructt,msgIdArg = False,namePrefix = "namePrefix")
+        s += "\n{\n"
+        s += "    "+self.intTypeName +" pos = 0;\n"
+        if "parentName" in baseStructt:
+            s += "\nERROR: base or header should not have a parent\n"
+
+        # build the assignment of the data fields to the buffer
+        s += self.genUnpackFields(baseStructt)
+
+        # s += "\n}\n -- old \n"
+ 
+        # # old code
+
+        # #s += self.singletonFuncDecl + self.lenTypeName + " " + "parseMsg(uint8_t buff[],int len) \n{\n"
+        # s += self.makeFunName(baseStructt,self.intTypeName,self.funcUnpackNamePrefix, "uint8_t buff[],int len",isSingletonFun=True) + "\n{\n"
+        # #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
+        # s += "   " + self.makeFieldListGeneric(baseStructt,inclTypes = True, seperator = ";\n   " , inclParent = False , inclConst = False,  noLastSeparater = False ,inclArrLen =True)
+        # s1 = ""
+        # for f in  baseStructt["body"]:
+        #    s1 += self.genUnpackFieldCode(f)
+        # s  += s1.replace("\n","\n   ")
         s += "\n"
         for st in structList:
             if "localConst" in st:
@@ -721,8 +765,7 @@ class CcodeGenerator(BaseCodeGenerator):
             s += "  "+self.genVarDecl(f, termstr = ";\n",setInitValue = False)
             #s += "  "+self.genVarDecl(f["type"],f["name"],vv, termstr = ";\n")
         return s   
-    def genStructDeclBegin(self,structname,parentstruct= None):
-        
+    def genStructDeclBegin(self,structname,parentstruct= None):        
         s  = "typedef struct "+structname+" {\n"
         if parentstruct is not None: 
             s += "  " + parentstruct['name'] + " ??;\n"
@@ -733,6 +776,7 @@ class CcodeGenerator(BaseCodeGenerator):
         return s
     def isStructDeclUsed(self,structt):
         return self.isAnnoTagDefined(structt,'STRUCT')
+    #TODO: remove?
     def genCstructs(self):
         s  = ""
         for st in structList:
@@ -741,31 +785,29 @@ class CcodeGenerator(BaseCodeGenerator):
             s += self.genStructVarDecls(st)
             s += self.genStructDeclEnd(st['name'])
         return s
-    def genCstruct(self,st):
+    def genCstructIfUsed(self,st):
         s  = "\n"
         if self.isStructDeclUsed(st):
             s += self.genStructDeclBegin(st['name'])
             s += self.genStructVarDecls(st)
             s += self.genStructDeclEnd(st['name'])
         return s
-    def genFuncPrototypes(self):
+    def genStructPrototypes(self):
         s  = ""
         for structt in structList:
-            s += self.genCstruct(structt)
-            s += self.makeLineComment("@param buff[]    buffer with data to be unpacked ")
-            s += self.makeLineComment("@param len       number of bytes in buff, must be at long enough for complete struct ")
-            s += self.makeLineComment("@return if > 0 : position in array of last extracted data")
-            s += self.makeLineComment("@return if < 0 : error in data stream (-4: too short, -23: CRC error")
-            #nn = structt['name'].upper() + "_"
+            # normally C struct are not declared but there are circumstances where it is needed
+            s += self.genCstructIfUsed(structt)
+            # TODO: cleanup this?
             nn = "" #convertCamelToSnake(structt["name"])
             s += self.genUnpackFunDecl(structt,namePrefix = nn ) #,msgIdArg = msgIdArg,namePrefix = namePrefix)
             s += ";\n"
             s += self.genPackFunDecl(structt,namePrefix = nn)
             s += ";\n"
-            
-            #s += self.genStructDeclBegin(st['name'])
-            #s += self.genStructVarDecls(st)
-            #s += self.genStructDeclEnd(st['name'])
+            # in most cases there is one structure that defines the header
+            # this is a special struct that needs more code to full fill its role 
+            # as base from which the other messages are 'created'
+            if self.isAnnoTagDefined(structt,"MSG_BASE"):
+                s += "\n============== base =================\n\n"
         return s
 
     def genAll(self,hfilename,cfilename= "xxxx.c"):
@@ -778,11 +820,12 @@ class CcodeGenerator(BaseCodeGenerator):
         sh += self.genAuxDef()
         sh += self.makeLineCommentDivider()
         sh += self.genAllEnumDefs()
+        # TODO: remove???? - now done as part of structure declarations
         sh += self.genCstructs()
         sh += self.makeLineCommentDivider()
         sh += self.makeLineComment("Function declarations")
         sh += self.makeLineCommentDivider()
-        sh += self.genFuncPrototypes()
+        sh += self.genStructPrototypes()
         sh += "#endif  // "+hprot +"\n"
         
         sc  = "// C code \n"
@@ -790,10 +833,14 @@ class CcodeGenerator(BaseCodeGenerator):
         sc += '#include "'+hfilename +"\n"
         sc += annotateDict.get('c_includes',"")
         sc += annotateDict.get('c_code',"")
-        for st in structList:
-            sc += self.genPackFun( st) +"\n"
-            sc += self.genUnpackFun( st) +"\n"
-        sc += self.genProcessMsgFuns()
+        for structt in structList:
+            sc += self.genPackFun( structt) +"\n"
+            sc += self.genUnpackFun( structt) +"\n"
+            if self.isAnnoTagDefined(structt,"MSG_BASE"):
+                sc += "\n============== base =================\n\n"
+                sc += self.genSelecAndProcessMsgFun(structt)  
+
+        #sc += self.genProcessMsgFuns()
         return sh,sc
 
 

@@ -15,8 +15,8 @@ from pyparsing import (Word, alphas, alphanums, Regex, Suppress, Forward,
 enumList     = []
 structList   = []
 structDict   = {}
-msgList   = []
-msgDict   = {}
+msgList      = []
+msgDict      = {}
 headerList   = {}
 annotateDict = {}
 
@@ -70,8 +70,8 @@ IDENT      = Word(alphas+"_",alphanums+"_")("name")
 # expression like in a formula
 EXPR       = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
 # expression but spesifically for call annotation
-CEXPR      = Word(alphanums+"_"+"&",alphanums+"_"+"+"+"-"+"/"+"*"+"="+"&")("expr")
-CIDENT     = Word(alphanums+"_",alphanums+"_")("name")
+#CEXPR      = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*"+"="+"&")("expr")
+CARG       = Word(alphanums+"_"+"&",alphanums+"_"+"+"+"-"+"/"+"*"+"="+"&")("arg")
 
 LBRACE,RBRACE,LBRACK,RBRACK,LPAR,RPAR,EQ,SEMI,COLON,AT,STOP,LESS,LARGER,COMMA = map(Suppress,"{}[]()=;:@.<>,")
 
@@ -127,11 +127,13 @@ typeres             = oneOf("""STRUCTLEN8 STRUCTLEN16 CRC8 CRC16 CRC32""")
 arrDec              = Optional(LBRACK + EXPR("arrLen") + RBRACK)
 varEndian           = Optional("@BE",default="@LE")("endianess")
 annoCheckVal        = Optional("@CHECK")("annoCheckVal")
-#annoFunCall         = Optional("@CALL"+EQ+IDENT("funName")+LPAR+CAEXPR+COMMA+CAEXPR+RPAR)("annoFunCall") 
+#annoFunCall         = Optional(EQ + AT + CEXPR("callName")+LPAR+ CARG("arg1")+ COMMA + CARG("arg2") +RPAR)
+annoFunCall         = Optional(EQ + AT + IDENT("callName")+LPAR+ CARG("arg1")+ COMMA + CARG("arg2") +RPAR)
 
 fieldtag            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
 #fieldint            = typeint("type")  + Optional(LBRACK + EXPR("arrLen") + RBRACK)  + IDENT + Optional(EQ + EXPR("value"))
-fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value")) + Optional(EQ + AT + CEXPR("callName")+LPAR+ CIDENT("arg1")+ COMMA + CIDENT("arg2") +RPAR)
+##fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value")) + Optional(EQ + AT + CEXPR("callName")+LPAR+ CIDENT("arg1")+ COMMA + CIDENT("arg2") +RPAR)
+fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value")) + annoFunCall
 fieldstr            = typestr("type")  + IDENT + Optional(EQ + quotedString("value"))
 #fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
 fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)

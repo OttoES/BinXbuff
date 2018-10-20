@@ -80,6 +80,10 @@ ___
 
 
 
+**Annotations**
+* MSG_BASE  =  
+
+
 **Structure locals constants**
 * MSG_BASE  =  TRUE
 Fields in this structure

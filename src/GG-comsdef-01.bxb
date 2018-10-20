@@ -51,6 +51,7 @@ enum comnd {
  This is the common header for all messages. 
 */
 struct MsgHeader
+@MSG_BASE=""
 <MSG_BASE=TRUE>
 {
     /* This is a magic number that indicates the start of the message. */
@@ -73,7 +74,7 @@ struct MsgHeader
     uint16         seqNr;                 // A sequence number send with the request
     CRC16          __crc16[destAddr:seqNr]; // crc use for integrity checking
     uint16         xxxxx;
-    uint16         __crc2 = @crc16(destAddr,xxxxx) @BE;
+    uint16         __crc2 = @crc16(&destAddr,xxxxx& ) @CHECK;
 }  
 
 /*

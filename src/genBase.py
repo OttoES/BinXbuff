@@ -60,8 +60,9 @@ class BaseCodeGenerator:
     typePostfix         = "_t"
     funcNamePrefix      = "BIN_"
     funcPackCallPrefix  = "BIN_call"
-    funcPackBaseName    = "packMsg"
-    funcUnpackBaseName  = "unpackMsg"
+    funcPackBaseName    = "pack"
+    funcUnpackBaseName  = "unpack"
+    funcUnpackInStruct  = "unpackIntoSruct"
     funcCreateName      = "objFactory"
     funcCreateFromBufName= "objFactory"
     funcProcessBuffName = "CallStoreSendBuffer"
@@ -145,6 +146,7 @@ class BaseCodeGenerator:
             else:
                 s += "[" + str(arrayLen) +"]"
         return s
+    # TODO: stillused??
     def isMessage(self,structt):
         if self.findInConstList( structt,"MSG_ID"): return True
         if self.findInConstList( structt,"MSG_COND"): return True
@@ -251,7 +253,7 @@ class BaseCodeGenerator:
         if any(c not in '0123456789+*- ' for c in eqs):  
             return eqs,False
         ll = eval(eqs)
-        return ll,True
+        return str(ll),True
     def genVarDecl(self,sfield,inclArrLen =False, termstr = ";", setInitValue = True):
         if not "type" in sfield:
             return "" 
@@ -370,32 +372,48 @@ class CcodeGenerator(BaseCodeGenerator):
         s  = "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
         s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s
-    def genUnpackFieldCode(self,f):
+    def genUnpackFieldCode(self,f,deref = None):
+        """
+        Generate code to unpack the the data from the byte array into
+        a variable
+
+        f       is the field
+        deref   indicaae if the variabe should  be dereferenced like in the case oof a class
+        """
+        if deref is None:
+            preamble = self.lookupFieldType(f)+"  "
+        else:
+            preamble = deref
         tsize   = self.lookupTypeSize(f["type"])
         bufname = self.packBuffName 
         if "arrLen" in f:  
+            if f["type"] in structDict:
+                s  = "int ii;\n"
+                s += self.lookupFieldType(f) + "  " + f["name"] +"[" + f["arrLen"] + "];\n"
+                s += "for (ii = 0; ii < "+ f["arrLen"] +" ;ii++) {\n"
+                s += "  int ret = "+f["type"]+self.funcUnpackInStruct+"("+f["name"]+"[ii],&buff[pos],buflen-pos);\n"
+                s += "  if (ret < 0) return ret;\n"
+                s += "  pos += ret;\n"
+                s += "} // for ii\n"
+                return s
+            # probaly an array - else unknown type and will give a compile error
             lenstr = str(tsize)+"*" + f["arrLen"]
-            ## this is only valid if the endianess is the same for multibyte types !!!!
+            # TODO: this is only valid if the endianess is the same for multibyte types !!!!
             return "memcpy("+f["name"] +","+bufname+","+lenstr + ");\n"
-        # if tsize == 1:
-        #     return  self.lookupType(f["type"])+"  "+ f["name"] + " = ("+self.lookupType(f["type"])+ ")" + bufname+"[pos++] " + ";\n"
-        # elif tsize == 2: 
-        #     # this is  little endian
-        #     return  self.lookupType(f["type"])+"  "+f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8)" +  ");\npos +=2;\n"
-        # elif tsize == 4: 
-        #     # this is  little endian
-        #     return  self.lookupType(f["type"])+"  "+f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8) + (((uint32_t)"+ bufname+"[pos+2])<<16) + (((uint32_t)"+ bufname+"[pos+3])<<24)) " +  ");\npos +=4;\n"
         if tsize == 1:
-            return  self.lookupFieldType(f)+"  "+ f["name"] + " = ("+self.lookupFieldType(f)+ ")" + bufname+"[pos++] " + ";\n"
+            return  preamble+ f["name"] + " = ("+self.lookupFieldType(f)+ ")" + bufname+"[pos++] " + ";\n"
         elif tsize == 2: 
             # this is  little endian
             return  self.lookupType(f["type"])+"  "+f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8)" +  ");\npos +=2;\n"
         elif tsize == 4: 
             # this is  little endian
             return  self.lookupType(f["type"])+"  "+f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"[pos] + ("  + bufname+"[pos+1]<<8) + (((uint32_t)"+ bufname+"[pos+2])<<16) + (((uint32_t)"+ bufname+"[pos+3])<<24)) " +  ");\npos +=4;\n"
-        s  = "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
-        s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
-        return s
+        # if we get here it is probably a struct
+        s  = f["type"] + self.typePostfix + "  " + f["name"] + ";\n"
+        s += "pos    += " + self.makeFunName(f,"",self.funcUnpackInStruct,"???") +";"
+        #s += "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
+        #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
+        return s + "\n"
     
     def genPackFields(self,structt):    
         fields    = structt["body"]
@@ -414,26 +432,33 @@ class CcodeGenerator(BaseCodeGenerator):
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s 
-    def translateExp(self,structt,expr):
+    def replaceSymbsInFieldAssgn(self,structt,expr):
         # TODO: add more stuff such as expressions with keywords
-        if expr[0] == "&":  # needs to the the address of the field
+        if expr[0] == "&":  # needs buffpos/address of the field
             s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
             if pres: return s1
-        if expr[-1] == "&":  # needs to the the address of the field
+        if expr[-1] == "&":  # needs position in buff including this field
             s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)    
-            if pres: return s1
+            if pres:
+                s1,__  = self.simplifyEq(s1)
+                return s1
         return expr
 
-    def genUnpackFields(self,structt):    
+    def genUnpackFields(self,structt):
+        if self.isStructDeclUsed(structt):
+            stuctderef = "this->"    
+        else:
+            stuctderef = None
         fields    = structt["body"]
         s = ""
         s1  = "    "
         for f in fields:
+            # TODO: this will probably be remove - replace with @ function call 
             if f["type"] == "CRC16":
                 p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
                 p2,fnd2 = self.genPackFieldPosCalc(structt,f['rangeEnd'],True)
                 s += "    ??int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.packBuffName+", "+p1 + "," + p2 + ");\n" 
-            s1 += self.genUnpackFieldCode(f) 
+            s1 += self.genUnpackFieldCode(f,deref = stuctderef) 
             # s1 += "// "+ f["type"] + " -> " + self.lookupFieldType(f) +    "\n"
             # check if it is assigned a value
             if "value" in f :
@@ -448,8 +473,8 @@ class CcodeGenerator(BaseCodeGenerator):
             if "callName" in f :
                 if "annoCheckVal" in f:   # should the constant value be checked
                     s1 += self.makeLineComment(" check the field value is equal to the returned function value")
-                    arg1 = self.translateExp(structt,f["arg1"]); 
-                    arg2 = self.translateExp(structt,f["arg2"]); 
+                    arg1 = self.replaceSymbsInFieldAssgn(structt,f["arg1"]); 
+                    arg2 = self.replaceSymbsInFieldAssgn(structt,f["arg2"]); 
                     s1 += self.makeLineComment("call user function with "+f["arg1"]+" and " +f["arg2"])
                     funCallStr = f["callName"]+"(" +self.packBuffName +","+arg1+","+arg2 +")"
                     #s1 += self.lookupType(varType) + " " + "ret_"+f["name"] + " = " + 
@@ -463,11 +488,9 @@ class CcodeGenerator(BaseCodeGenerator):
         # funname = cleanstr(funname)
         # s += funname + "(" +self.packBuffName +", pos);\n"
         return s 
-    # includeField inidcate if the field named fieldName shold be included in the position calculations    
-    #def genPackFieldPosCalc(self,fields,fieldName,includeField):    
+    # includeField inidcate if the field named fieldName should be included in the position calculations    
     def genPackFieldPosCalc(self,structt,fieldName,includeField):    
         fields    = structt["body"]
-        ##fieldName = structt['name']
         s = ""
         if "parentName" in structt:
             parnt = structt["parentName"]
@@ -497,16 +520,19 @@ class CcodeGenerator(BaseCodeGenerator):
         args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" len "
         s     = self.makeFunName(structt,structt['name'],namePrefix+self.funcCreateFromBufName,args)
         return s
-    def genUnpackFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
+    def genUnpackFunDecl(self,structt,copyToBuff=True,classLike=False,namePrefix = ""):
         s  = "\n"
         # generate the comments
         s += self.codeCommentStart
         s += self.doxPre + "param buff[]    buffer with data to be unpacked "
-        s += self.doxPre + "param len       number of bytes in buff, must be at long enough for complete struct "
+        s += self.doxPre + "param buflen    number of bytes in buff, must be at long enough for complete struct "
         s += self.doxPre + "return if > 0 : position in array of last extracted data"
         s += self.doxPre + "return if < 0 : error in data stream (-4: too short, -23: CRC error"
         s += "\n" + self.codeCommentEnd +"\n"
-        args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" bufize "
+        args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" buflen "
+        #if classLike:
+        if self.isStructDeclUsed(structt):
+            args = structt["name"]+self.typePostfix +"* this,"+args
         s += self.makeFunName(structt,self.intTypeName,namePrefix+self.funcUnpackBaseName,args)
         return s
     def genPackFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
@@ -582,14 +608,12 @@ class CcodeGenerator(BaseCodeGenerator):
             s += "    return  pos;\n"
         s += "\n} // end\n"
         return s
-    def genUnpackFun(self,structt,callParentUnpack=False,msgIdArg = False,namePrefix = ""):
+    #
+    def genUnpackFun(self,structt,callParentUnpack=False,classLike=False,namePrefix = ""):
         # determine if the function should be defined 
         ret = self.getLocalAnno(structt,"unpack","TRUE")
         if ret == "FALSE" : return ""    # function should not be generated
-        #structnme     = structt["name"]
-        #fields        = structt["body"]
-        #parentArgs    = ""
-        s  = self.genUnpackFunDecl(structt,msgIdArg = msgIdArg,namePrefix = namePrefix)
+        s  = self.genUnpackFunDecl(structt,classLike=False,namePrefix = namePrefix)
         s += "\n{\n"
         s += "    "+self.intTypeName +" pos = 0;\n"
         #s += "    const int "+self.packBuffName+"Len = " + self.genPackLenCalc(fields)
@@ -608,26 +632,22 @@ class CcodeGenerator(BaseCodeGenerator):
         #-- build the assignment of the data fields to the buffer
         s += self.genUnpackFields(structt)
 
-        # call the user function
-        defaultfunname = convertCamelToSnake(structt['name']) + "_" +"userfun"
-        funname = self.getLocalAnno(structt,"call_after_unpack",default = defaultfunname)
-        funname = cleanstr(funname)
-        args    = "," + self.makeCallFunArgList(structt)
-        s += funname + "(" +self.packBuffName +", pos"+args+");\n"
-
-        # if not copyToBuff:
-        #     s += "    return  "+self.funcProcessBuffName+"("+self.packBuffName
-        #     s += ", pos);\n"
-        # else:
-        #     s += "    return  pos;\n"
-        s += "\n} // end\n"
+        # call the user function only if not implemented as struct
+        if not self.isStructDeclUsed(structt):
+            defaultfunname = convertCamelToSnake(structt['name']) + "_" +"userfun"
+            funname = self.getLocalAnno(structt,"call_after_unpack",default = defaultfunname)
+            funname = cleanstr(funname)
+            args    = "," + self.makeCallFunArgList(structt)
+            s += funname + "(" +self.packBuffName +", pos"+args+");\n    "
+        s += "if ( pos > buflen) return "+ self.constErrBuffShort +";\n"
+        s += "    return  pos;\n"
+        s += "} // end\n"
         return s
 
     def genEnumStart(self,enm):
         return  "\ntypedef enum "+enm["enumName"] + " {"
     def genEnumEnd(self,enm):
         return  "} "+enm["enumName"] + self.typePostfix +";\n"  
-
 
     def genAllEnumDefs(self,separator = ","):    
         s = ""
@@ -656,14 +676,15 @@ class CcodeGenerator(BaseCodeGenerator):
 
     def genProcessMsgDetail(self,structt):
         s  = "      "+self.makeLineComment( "unpack each field into a variable")
-         #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
-        s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False ,inclArrLen =True )
-        s1 = ""
+        #s += self.genVarDecl(sfield,inclArrLen =False, termstr = ";")
+        #s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False ,inclArrLen =True )
+        s1 = "      "
         for f in  structt["body"]:
-           s1 += self.genUnpackFieldCode(f)
+           s1 += self.genUnpackFieldCode(f) 
         s  += s1.replace("\n","\n      ")
         s += "if (pos > len) "
-        s += "   {\n        // error\n        "+self.errorHandlerName+'("Message '+structt['name']+' to short");\n        return -2;\n      }\n'
+        s += "   {\n        // error\n        "+self.errorHandlerName+'("Message '+structt['name']+' to short");\n'
+        s += '        return '+ self.constErrBuffShort +';\n      }\n'
         s += "      "+ self.makeLineComment("call the (external user) defined function with the unpacked data")
         s += "      "+ self.funcProcessFunPrefix + structt["name"] +"("
         s += self.makeCallFunArgListAll(structt)
@@ -688,7 +709,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s += "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
 
  
-        s += self.genUnpackFunDecl(baseStructt,msgIdArg = False,namePrefix = "namePrefix")
+        s += self.genUnpackFunDecl(baseStructt,namePrefix = "tmpPrefix")
         s += "\n{\n"
         s += "    "+self.intTypeName +" pos = 0;\n"
         if "parentName" in baseStructt:
@@ -726,15 +747,17 @@ class CcodeGenerator(BaseCodeGenerator):
                     if 'expr' in itm:
                         s2 = "("+itm['expr']+")"
                 if len(s1)>1 and len(s2)>1:
-                    s3 = "   if ("+s1+" & "+s2+") {\n"
+                    s3 = "    if ("+s1+" & "+s2+") {\n"
                 else: 
-                    s3 = "   if "+s1+s2+" {    // "+ st["name"] + "\n"
+                    s3 = "    if "+s1+s2+" {    // "+ st["name"] + "\n"
                 if len(s1)>1 or len(s2)>1:
                     s += s3+ self.genProcessMsgDetail(st)
-                    s += "   } else \n"
+                    s += "    } else \n"
             #s += self.genPackFun( st) +"\n"
-        s += "   {\n      // error\n      "+self.errorHandlerName+'("Unknown message tag");\n      return -1;\n   }\n'
-        s += "   return pos;\n"
+        s += "    {\n      // error\n      "
+        s += self.errorHandlerName+'("Unknown message tag");\n      return '
+        s += self.constErrUnknownTag +';\n    }\n'
+        s += "    return pos;\n"
         s += "} // end\n"
         return s
 
@@ -799,6 +822,9 @@ class CcodeGenerator(BaseCodeGenerator):
             s += self.genCstructIfUsed(structt)
             # TODO: cleanup this?
             nn = "" #convertCamelToSnake(structt["name"])
+            # if self.isStructDeclUsed(structt):
+            #     s += self.genUnpackFunDecl(structt,classLike=True)
+            # else:    
             s += self.genUnpackFunDecl(structt,namePrefix = nn ) #,msgIdArg = msgIdArg,namePrefix = namePrefix)
             s += ";\n"
             s += self.genPackFunDecl(structt,namePrefix = nn)
@@ -1019,7 +1045,7 @@ class MarkdownGenerator(CcodeGenerator):
                 s += m.ROW + f["name"] + m.COL + vtype + m.COL + arrLen + m.COL + cleanstrNL(cmt) + m.COL
             slen,ret = m.genPackLenCalc(st)    
             simlen,canSimplify = m.simplifyEq(slen)
-            if canSimplify : simlen = str(simlen) 
+            if canSimplify : simlen = simlen 
             else : simlen = "variable"
             s += m.ROW + "Total" + m.COL + " length" + m.COL + simlen + m.COL + slen  + m.COL
             s += m.NLNL 

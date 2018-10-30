@@ -10,14 +10,18 @@
 
 @c_includes =  '''
 #include <stdio.h>
-#include "comms.h"
 '''
 
 @c_code = '''
+
+const int MLEN = 5;
+
 void testfun(void)
 {
-   dosomething();
+   ;
 } // end test
+
+static uint16_t crc16(uint8_t buf[],int startpos,int endpos) { return 0xEEE; }
 '''
 
 # This is a C annotation to call a function (DATA_store in this case) at the end of the pack function.
@@ -34,6 +38,7 @@ void testfun(void)
    * a broadcast command is only acknowladced by one address
 */
 enum comnd { 
+    CMD_NONE           = 0x0;   // Not a valid command 
     CMD_BROADCAST      = 0x0A;  // Broadcast 
     CMD_BROADCAST_ACK  = 0x03;  // An acknowladge if the broadcast command was sucessfull 
     CMD_READ           = 0x15;
@@ -52,7 +57,8 @@ enum comnd {
 */
 struct MsgHeader
 @MSG_BASE=""
-<MSG_BASE=TRUE>
+<MSG_ID=CMD_NONE>
+<MLEN=5>
 {
     /* This is a magic number that indicates the start of the message. */
     uint32  __magic = 0xEFBE0D90 @CHECK;   // (This is 0x900DBEEF in bigendian format)
@@ -68,9 +74,9 @@ struct MsgHeader
     */
     uint8          destAddr;   
     uint8          sourceAddr;            // The source address.
-    enum8 comnd    msg_id    = CMD_ID;       // This is the message identifier. 
+    enum8 comnd    msg_id    = MSG_ID;       // This is the UNKNOWN message identifier. 
     uint8          subCmd;                //  
-    uint16         len    = MSG_LEN;      // the lenghth of he data 
+    uint16         len    = MLEN;      // the lenghth of he data 
     uint16         seqNr;                 // A sequence number send with the request
     uint16         xxxxx;
     uint16         __crc2 = @crc16(&destAddr,xxxxx& ) @CHECK;
@@ -89,38 +95,13 @@ struct ReadMsg headedby MsgHeader
 <IS_MSG = 0x55>
 {
       
-    enum8 subRead  subCmd { a=1 ; b=2;};         // 
-    uint16         len    = 0;     // no data send with this message
+    enum8 subRead  subCmd2 { a=1 ; b=2;};         // 
+    uint16         rlen    = 0;     // no data send with this message
     /*
       A sequence number assosiated with this message and returned 
       by the CMD_READ_ACK
     */
-    uint16         seqNr;       
-    CRC16          __dcrc16[destAddr:seqNr] ; 
-}
-
-struct ReadMsgReply headedby MsgHeader
-<CASE=44>
-<MSG_ID   = CMD_READ_REPLY> 
-<MSG_COND = (subCmd == DINFO_EVENT_LOG)  >
-{
-      
-    infoLog[10]    log;                // normally
-    CRC16          __crc16[log:log]; // crc use for integrity checking
-
-}
-
-enum  SubCmdRead {
-    DINFO_STATUS             = 1;  // DevOnly
-    DINFO_VERSION            = 2;  // DevOnly
-    DINFO_NETSTATS           = 4;
-    DINFO_VERSION            = 5;
-    DINFO_LANG_STATS         = 6;
-    DINFO_HOPONOFF_STATS     = 7;
-    DINFO_EVENT_LOG          = 8;
-    DINFO_EVENT_LOG_WITH_DEL = 9;
-    DINFO_DEBUG              = 100; // DevOnly
-
+    uint16         seqNr2;       
 }
 
 
@@ -132,6 +113,31 @@ struct infoLog
     uint8        seatLeftAux1;
     uint8        seatRightAux1;
     uint32       res;
+}
+
+
+
+struct ReadMsgReply headedby MsgHeader
+<CASE=44>
+<MSG_ID   = CMD_READ_REPLY> 
+<MSG_COND = (subCmd == DINFO_EVENT_LOG)  >
+{
+      
+    infoLog[10]    log;                // normally
+
+}
+
+enum  SubCmdRead {
+    DINFO_STATUS             = 1;  // DevOnly
+    DINFO_VERSION            = 2;  // DevOnly
+    DINFO_NETSTATS           = 4;
+    DINFO_STATS_REP          = 5;
+    DINFO_LANG_STATS         = 6;
+    DINFO_HOPONOFF_STATS     = 7;
+    DINFO_EVENT_LOG          = 8;
+    DINFO_EVENT_LOG_WITH_DEL = 9;
+    DINFO_DEBUG              = 100; // DevOnly
+
 }
 
 enum Gender {
@@ -152,13 +158,11 @@ struct SetProfile headedby MsgHeader
 { 
   int32 id = 1;      // the user identificatin number
   char[20]  surname; // the user surname
-  enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
+  enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };      
 
   enum8     Gender gender;
   int8      dlen  @BE;
-  CRC16     hdrCrc2[dest:dlen] @BE; // a message calculated crc
   char[dlen]    addit;
-  zstring     __email = "eeeeee"; 
 }
 
 
@@ -170,4 +174,6 @@ struct DemoIntlFuncCall
    uint16    vxx1;
    uint32    vxx2;
    infoLog   infox;
+   uint8     infoLen;
+   infoLog[infoLen]   infoarr;
 }

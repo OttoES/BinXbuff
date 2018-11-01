@@ -105,7 +105,7 @@ Fields in this structure
 |sourceAddr|uint8|-|  The source address.|
 |msg_id|enum8 [comnd](#enum-comnd)|-|  This is the UNKNOWN message identifier. |
 |subCmd|uint8|-|   |
-|len|uint16|-|  the lenghth of he data |
+|mlen|uint16|-|  the lenghth of he data |
 |seqNr|uint16|-|  A sequence number send with the request|
 |xxxxx|uint16|-||
 |__crc2|uint16|-||

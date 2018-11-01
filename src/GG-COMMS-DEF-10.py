@@ -20,6 +20,7 @@ def mainTest2():
     (sh,sc,su) = cgen.genAll("xx.h")
     saveToFile("src_c/xx.h",sh)
     saveToFile("src_c/xx.c",sc)
+    su = cgen.simpleReindent(su)
     saveToFile("src_c/xx_user.h",su)
     #print(s)
 
@@ -30,7 +31,22 @@ def mainTest2():
     pygen = OOpythonGenerator() 
     s = pygen.genAll("xx.py")
     saveToFile("src_py/xx.py",s)
+    
+    sx = """
+    void mytest() {
+     for x = kkkfd {
+         if fdfgf
+         {
+     while () {}
+     if xx {
 
+     } // if xx
+         }
+     }   
+    } // end
+    """
+    s = cgen.simpleReindent(sx)
+    print (s)
 
 if __name__ == "__main__":
     # execute only if run as a   script

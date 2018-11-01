@@ -76,7 +76,7 @@ struct MsgHeader
     uint8          sourceAddr;            // The source address.
     enum8 comnd    msg_id    = MSG_ID;       // This is the UNKNOWN message identifier. 
     uint8          subCmd;                //  
-    uint16         len    = MLEN;      // the lenghth of he data 
+    uint16         mlen    = MLEN;      // the lenghth of he data 
     uint16         seqNr;                 // A sequence number send with the request
     uint16         xxxxx;
     uint16         __crc2 = @crc16(&destAddr,xxxxx& ) @CHECK;
@@ -169,7 +169,7 @@ struct SetProfile headedby MsgHeader
 
 struct DemoIntlFuncCall 
 @cv_call_in_pack = "DATA_transmit"
-@c_call_after_unpack = "ProcessDemoCall"
+@c_call_after_unpack = "processDemoCall"
 {
    uint16    vxx1;
    uint32    vxx2;

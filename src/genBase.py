@@ -67,9 +67,10 @@ class BaseCodeGenerator:
     #funcCopyStruct      = "copyStruct"
     funcCreateName      = "objFactory"
     funcCreateFromBufName= "objFactory"
+    funcCreateAndUnpackData="readStream"
     funcProcessBuffName = "CallStoreSendBuffer"
     funcUnpackNamePrefix= "BIN_unpack"
-    funcProcessFunPrefix= "BIN_process"              # prefix for the functions that process incoming messages
+    funcProcessFunPrefix= "PROCESS_MSG_"              # prefix for the functions that process incoming messages
     noTypeName          = "void" 
     intTypeName         = "int"
     bufTypeName         = "uint8_t"
@@ -358,6 +359,30 @@ class CcodeGenerator(BaseCodeGenerator):
     def __init__(self):
         # set the language
         self.LANG = BaseCodeGenerator.LANG_C
+    def simpleReindent(self,ccode):
+        lines = ccode.splitlines()
+        # must still handle special cases for comments
+        lines = [s.strip() for s in lines]
+        ss = ""
+        indent = ""
+        for ll in lines:
+            if "{" in ll and "}" in ll : # special case with {} in same line
+                ss += indent + ll + "\n"  
+                continue
+            if "}" in ll: indent  = indent[:-4]
+            ss += indent + ll + "\n"  
+            if "{" in ll: indent += "    " 
+        return ss
+
+        # first remove all indentation
+        s = ccode.replace("\n    ","\n")
+        s = s.replace("\n   ","\n")
+        s = s.replace("\n   ","\n")
+        s = s.replace("\n  ","\n")
+        s = s.replace("\n ","\n")
+        # now indent only based on brackets
+
+        return ss
     def genPackFieldCode(self,f,deref = ""):
         # if deref is None:
         #     preamble = self.lookupFieldType(f)+"  "
@@ -369,14 +394,14 @@ class CcodeGenerator(BaseCodeGenerator):
             if f["type"] in structDict:
                 s  = "int ii;\n"
                 #s += self.lookupFieldType(f) + "  " + f["name"] +"[" + f["arrLen"] + "];\n"
-                s += "for (ii = 0; ii < "+ f["arrLen"] +" ;ii++) {\n"
+                s += "    for (ii = 0; ii < "+ f["arrLen"] +" ;ii++) {\n"
                 args = "&"+f["name"]+"[ii],&buff[pos],bufSize-pos"
                 #s += "  int ret = "+f["type"]+self.funcPackInBuff+"("+f["name"]+"[ii],&buff[pos],bufSize-pos);\n"
-                if f["type"] in structDict:
-                    s += "  int ret = "+self.makePackInStructDecl(structDict[f["type"]],args) +";\n"
-                s += "  if (ret < 0) return ret;\n"
-                s += "  pos += ret;\n"
-                s += "} // for ii\n"
+                #if f["type"] in structDict:
+                s += "      int ret = "+self.makePackInStructDecl(structDict[f["type"]],args) +";\n"
+                s += "      if (ret < 0) return ret;\n"
+                s += "      pos += ret;\n"
+                s += "    } // for ii\n"
                 return s
             lenstr = str(tsize)+"*" + f["arrLen"]
             # TODO: Maybe would be beer have a makeArrayDecl
@@ -400,6 +425,18 @@ class CcodeGenerator(BaseCodeGenerator):
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+deref+ f["name"] + ">>8);\n"
             s += "    "+ self.packBuffName+"[pos++] = (uint8_t)("+deref+ f["name"] + ">>16);\n"
             return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+deref+ f["name"] + ">>24);\n"
+        # if it is a structure array unpack in a loop
+        if f["type"] in structDict:
+            # s  = "int ii;\n"
+            # s += "for (ii = 0; ii < "+ f["arrLen"] +" ;ii++) {\n"
+            args = "&"+f["name"]+",&buff[pos],bufSize-pos"
+            #if f["type"] in structDict:
+            s  = "{ // start block\n"
+            s += "      int ret = "+self.makePackInStructDecl(structDict[f["type"]],args) +";\n"
+            s += "      if (ret < 0) return ret;\n"
+            s += "      pos += ret;\n"
+            s += "    } // end block\n"
+            return s
         s  = "pos    += " + self.funcPackCallPrefix + f["type"].capitalize() 
         s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s
@@ -577,9 +614,10 @@ class CcodeGenerator(BaseCodeGenerator):
         args  = "void"
         s     = self.makeFuncDeclr(structt,structt['name'],namePrefix+self.funcCreateName,args)
         return s
-    def genCreateFromBuffFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
-        args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" len "
-        s     = self.makeFuncDeclr(structt,structt['name'],namePrefix+self.funcCreateFromBufName,args)
+    def genCreateFromBuffFunDecl(self,structt,retType=False,msgIdArg = False,namePrefix = ""):
+        args  = "uint8_t  "+self.packBuffName+"[],"+self.intTypeName +" buflen "
+        if retType == False: retType = structt['name']
+        s     = self.makeFuncDeclr(structt,retType,namePrefix+self.funcCreateFromBufName,args)
         return s
     def makeUnpackFunCall(self,structt,args,namePrefix = ""):
         return self.makeFuncDeclr(structt,"",namePrefix+self.funcUnpackBaseName,args)
@@ -672,9 +710,13 @@ class CcodeGenerator(BaseCodeGenerator):
     #     def makeUserAferUnpackFunDecl(self,structt):
     def makeUserAferUnpackFunDecl(self,structt,inctypedecl=False): #,callParentUnpack=False,classLike=False,namePrefix = ""):
         if not self.isStructDeclUsed(structt):
-            defaultfunname = convertCamelToSnake(structt['name']) + "_" +"userfun"
-            funname = self.getLocalAnno(structt,"call_after_unpack",default = defaultfunname)
+            # defaultfunname = convertCamelToSnake(structt['name']) + "_" +"userfun"
+            # funname = self.getLocalAnno(structt,"call_after_unpack",default = defaultfunname)
+            # funname = cleanstr(funname)
+            funname = self.getLocalAnno(structt,"call_after_unpack",default = None)
+            if funname == None: return "    // no call after unpack\n"
             funname = cleanstr(funname)
+            funname = convertCamelToSnake(structt['name']) + "_" + funname
             if inctypedecl:
                 args    = self.bufTypeName + " "+ self.packBuffName+"[]," +self.intTypeName + " pos"+"," + self.makeDeclFunArgList(structt)
                 return self.intTypeName +" " + funname + "(" +args+");\n"
@@ -770,7 +812,7 @@ class CcodeGenerator(BaseCodeGenerator):
         for f in  structt["body"]:
            s1 += self.genUnpackFieldCode(f) 
         s  += s1.replace("\n","\n      ")
-        s += "if (pos > len) "
+        s += "if (pos > buflen) "
         s += "   {\n        // error\n        "+self.errorHandlerName+'("Message '+structt['name']+' to short");\n'
         s += '        return '+ self.constErrBuffShort +';\n      }\n'
         s += "      "+ self.makeLineComment("call the (external user) defined function with the unpacked data")
@@ -797,7 +839,9 @@ class CcodeGenerator(BaseCodeGenerator):
         s += "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
 
  
-        s += self.genUnpackFunDecl(baseStructt,namePrefix = "tmpPrefix")
+        #s += self.genUnpackFunDecl(baseStructt,namePrefix = self.funcCreateAndUnpackData)
+        s += self.genCreateFromBuffFunDecl(baseStructt,retType="int") #,namePrefix = self.funcCreateAndUnpackData)
+        
         s += "\n{\n"
         s += "    "+self.intTypeName +" pos = 0;\n"
         if "parentName" in baseStructt:

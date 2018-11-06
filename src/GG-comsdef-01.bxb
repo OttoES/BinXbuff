@@ -1,5 +1,5 @@
 @name       =  "GGCommsDefinition"
-@version    =  "1.0-2"
+@version    =  "1.0.dev1"
 @copyright  =  "Copyright OttoES (2018)"
 @doc_title  =  "Greatguide Communications Protocol Definition"
 @doc_header =  "BXB definition document"

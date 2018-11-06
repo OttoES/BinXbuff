@@ -1,5 +1,6 @@
 """ Copyright OttoES 2018
 """
+VERSION    = "0.1.dev3"
 
 from parseBinXbuff import (parser, enumList  , structList,structDict, msgList,msgDict, annotateDict)
 
@@ -254,13 +255,59 @@ class BaseCodeGenerator:
         # calculate the struct size by finding the last field offset
         lastField = structt["body"][-1]        
         return self.genPackFieldPosCalc(structt,lastField,True)
-          
+    ## lookup if the sring is in the list          
+    def findInConstList(self,lst,sstr):
+        for itm in lst:
+            if itm['name'] == sstr: return itm
+        return None
     ## try to simplify the equation if it only contains numbers
-    def simplifyEq(self,eqs):    
+    def simplifyConstsInEq(self,eqs):    
         if any(c not in '0123456789+*- ' for c in eqs):  
             return eqs,False
         ll = eval(eqs)
         return str(ll),True
+    # this will search hirarchically to find a constan if defined
+    # first look as this structures constants
+    # second look at parents constants
+    # last look at global annotations
+    def lookupConst(self,structt,annotag):
+        if "localConst" in structt:
+            lst     = structt["localConst"]
+            anno = self.findInConstList(lst,annotag)            
+            if anno: 
+                if "value" in anno:
+                    return anno['value']
+                if "string" in anno:
+                    return anno['string']        
+        if "parentName" in structt:
+            parnt = structt["parentName"]
+            parStruct = structDict[parnt]
+            aa = self.lookupConst(parStruct,annotag)
+            if aa is not None: return aa
+        # TODO: must still split the annotation explisitly
+        #  not sure that this is the best approach
+        if annotag in annotateDict: return annotagDict[annotag]
+        return None        
+#        for itm in lst:
+#            if itm['name'] == sstr: return itm
+    def simplifyAssignment(self,structt,eqs):
+        # first handle it if it is a string
+        if eqs[0] == '"': return eqs
+        # replace if a single replacement
+        sym = self.lookupConst(structt,eqs)     
+        if sym is not None: return sym   
+        # TODO: partial replacement, e.g. CONST_LEN+2
+        sl = re.split(r"([\+\-\*/\)\(\=\>\<\!)])",eqs)
+        rs = []
+        for s in sl:
+            sym = self.lookupConst(structt,s)     
+            if sym is not None:
+                rs.append(sym)
+            else:
+                rs.append(s)
+        return "".join(rs)
+        # TODO: function call replacements e.g. CRC()
+        return eqs
     def genVarDecl(self,sfield,inclArrLen =False, termstr = ";", setInitValue = True):
         if not "type" in sfield:
             return "" 
@@ -282,10 +329,6 @@ class BaseCodeGenerator:
                 s = s + " = " +  sfield["value"]
         s = s + termstr   
         return s
-    def findInConstList(self,lst,sstr):
-        for itm in lst:
-            if itm['name'] == sstr: return itm
-        return None
     def isAnnoTagDefined(self,structt,annostr):
         """Check if the annotation is present for this structure
         """
@@ -373,16 +416,10 @@ class CcodeGenerator(BaseCodeGenerator):
             ss += indent + ll + "\n"  
             if "{" in ll: indent += "    " 
         return ss
-
-        # first remove all indentation
-        s = ccode.replace("\n    ","\n")
-        s = s.replace("\n   ","\n")
-        s = s.replace("\n   ","\n")
-        s = s.replace("\n  ","\n")
-        s = s.replace("\n ","\n")
-        # now indent only based on brackets
-
-        return ss
+    def makeCondError(self,condi,msg=""):
+        return "if ("+condi+") return ret;\n"
+    def makeAssignByteToArr(self,byteArrName,arrIndx,byteVal):
+        return byteArrName + "[" + arrIndx +"] = (uint8_t)("+byteVal+");\n"
     def genPackFieldCode(self,f,deref = ""):
         # if deref is None:
         #     preamble = self.lookupFieldType(f)+"  "
@@ -399,12 +436,13 @@ class CcodeGenerator(BaseCodeGenerator):
                 #s += "  int ret = "+f["type"]+self.funcPackInBuff+"("+f["name"]+"[ii],&buff[pos],bufSize-pos);\n"
                 #if f["type"] in structDict:
                 s += "      int ret = "+self.makePackInStructDecl(structDict[f["type"]],args) +";\n"
-                s += "      if (ret < 0) return ret;\n"
+                #s += "      if (ret < 0) return ret;\n"
+                s += "      " + self.makeCondError("ret<0")
                 s += "      pos += ret;\n"
                 s += "    } // for ii\n"
                 return s
             lenstr = str(tsize)+"*" + f["arrLen"]
-            # TODO: Maybe would be beer have a makeArrayDecl
+            # TODO: Maybe would be better have a makeArrayDecl
             s = "// just copy but no valid if endianess differ\n" 
             #self.lookupFieldType(f) + "  " + f["name"] +"[" + f["arrLen"] + "];\n"
             ## this is only valid if the endianess is the same for multibyte types !!!!
@@ -412,12 +450,16 @@ class CcodeGenerator(BaseCodeGenerator):
             s += "    pos += "+ lenstr + ";\n"
             return s
         if tsize == 1:
-            return self.packBuffName+"[pos++] = (uint8_t)"+deref+ f["name"] + ";\n"
+            return self.makeAssignByteToArr(self.packBuffName,"pos++",deref+f["name"])
+            #return self.packBuffName+"[pos++] = (uint8_t)"+deref+ f["name"] + ";\n"
             #return self.packBuffName+"[pos++] = (uint8_t)"+ f["name"] + ";\n"
         elif tsize == 2: 
             # this is stored in little endian
-            s = self.packBuffName+"[pos++] = (uint8_t)"+deref+ f["name"] + ";\n"
-            return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+deref+ f["name"] + ">>8);\n"
+            s  = self.makeAssignByteToArr(self.packBuffName,"pos++",deref+f["name"])
+            s += "    "+self.makeAssignByteToArr(self.packBuffName,"pos++",deref+f["name"]+ ">>8")
+            return s
+            #s = self.packBuffName+"[pos++] = (uint8_t)"+deref+ f["name"] + ";\n"
+            #return s + "    "+ self.packBuffName+"[pos++] = (uint8_t)("+deref+ f["name"] + ">>8);\n"
         elif tsize == 4: 
             # this is stored in little endian
             s  = self.makeLineComment(" it is faster to copy byte by byte than calling memcpy()")
@@ -538,7 +580,7 @@ class CcodeGenerator(BaseCodeGenerator):
         if expr[-1] == "&":  # needs position in buff including this field
             s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)    
             if pres:
-                s1,__  = self.simplifyEq(s1)
+                s1,__  = self.simplifyConstsInEq(s1)
                 return s1
         return expr
 
@@ -970,7 +1012,7 @@ class CcodeGenerator(BaseCodeGenerator):
                 s += "// only for same indianness\n"
                 #s += self.intTypeName + " " +structt["name"]+ "_copy(struct "+structt["name"]+ "*ptr,uint8_t buff[],int pos)\n"
                 siz,res = self.genPackLenCalc(structt)
-                siz,res = self.simplifyEq(siz)
+                siz,res = self.simplifyConstsInEq(siz)
                 #s += "{ memcpy(buff,this,"+siz+"); return "+siz+"; }\n"
                 s += "{\n    int pos = 0;\n"
                 s += self.genPackFieldAssignments(structt,structPrefix = "this->")
@@ -1234,7 +1276,7 @@ class MarkdownGenerator(CcodeGenerator):
                 else: vtype = f["type"]
                 s += m.ROW + f["name"] + m.COL + vtype + m.COL + arrLen + m.COL + cleanstrNL(cmt) + m.COL
             slen,ret = m.genPackLenCalc(st)    
-            simlen,canSimplify = m.simplifyEq(slen)
+            simlen,canSimplify = m.simplifyConstsInEq(slen)
             if canSimplify : simlen = simlen 
             else : simlen = "variable"
             s += m.ROW + "Total" + m.COL + " length" + m.COL + simlen + m.COL + slen  + m.COL

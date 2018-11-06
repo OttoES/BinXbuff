@@ -11,13 +11,14 @@ from pyparsing import (Word, alphas, alphanums, Regex, Suppress, Forward,
     Group, oneOf, ZeroOrMore, Optional, delimitedList, Keyword, cStyleComment, cppStyleComment,
     restOfLine, quotedString,QuotedString, Dict)
 
+VERSION      = "0.1.dev2"
 
 enumList     = []
 structList   = []
 structDict   = {}
 msgList      = []
 msgDict      = {}
-headerList   = {}
+headerDict   = {}
 annotateDict = {}
 
 def addStructToList(structt):
@@ -37,7 +38,7 @@ def addEnumToList(enumm):
     enumList.append(enumm.asDict())
 
 def addToHeaderDict(headerName,structt):
-    headerList[headerName] = structt.asDict()
+    headerDict[headerName] = structt.asDict()
 
 def addToAnnotationDict(annotateName,annotate):
     s = annotate[1]

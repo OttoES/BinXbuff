@@ -1,4 +1,5 @@
-from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,OOcodeGenerator,ppprint,BaseCodeGenerator,OOpythonGenerator)
+from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,ppprint,BaseCodeGenerator,OOpythonGenerator)
+from bxb2ObjCode import OOcodeGenerator
 import os
 
 def saveToFile(fname,s):
@@ -47,6 +48,7 @@ def mainTest2():
     """
     s = cgen.simpleReindent(sx)
     print (s)
+   
 
 if __name__ == "__main__":
     # execute only if run as a   script

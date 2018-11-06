@@ -1,7 +1,7 @@
 
 # BXB definition document
 
-### GGCommsDefinition version 1.0-2
+### GGCommsDefinition version 1.0.dev1
 ___
 
 ## Intoduction

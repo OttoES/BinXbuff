@@ -69,7 +69,7 @@ IDENT      = Word(alphas+"_",alphanums+"_")("name")
 #xxINT        = Regex(r"[+-]?\d+")
 
 # expression like in a formula
-EXPR       = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"=")("expr")
+EXPR       = Word(alphanums+"_"+"(",alphanums+"_"+"+"+"-"+"/"+"*"+"("+")"+ " "+"="+"$")("expr")
 # expression but spesifically for call annotation
 #CEXPR      = Word(alphanums+"_",alphanums+"_"+"+"+"-"+"/"+"*"+"="+"&")("expr")
 CARG       = Word(alphanums+"_"+"&",alphanums+"_"+"+"+"-"+"/"+"*"+"="+"&")("arg")

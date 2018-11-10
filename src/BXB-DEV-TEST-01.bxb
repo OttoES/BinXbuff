@@ -1,0 +1,7 @@
+
+struct DemoIntlFuncCall 
+@cv_call_in_pack = "DATA_transmit"
+{
+   uint16    vxx1;
+   uint32    vxx2;
+}

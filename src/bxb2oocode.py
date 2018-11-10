@@ -5,10 +5,6 @@ class OOcodeGenerator(CcodeGenerator):
     def __init__(self):
         # set the language
         self.LANG = BaseCodeGenerator.LANG_CPP
-    def isStructDeclUsed(self,structt):
-        return True        
-    def makeAssignByteToArr(self,byteArrName,arrIndx,byteVal):
-        return byteArrName + "[" + arrIndx +"] = (uint8_t)(this."+byteVal+");\n"
     def genClassDeclBegin(self,structname,parentstruct= None):
         s = "class "+structname+" "
         if parentstruct is not None: 
@@ -72,8 +68,4 @@ class OOcodeGenerator(CcodeGenerator):
         ss += annotateDict.get('c_code',"")
         for st in structList:
             ss += self.genClassImplementation( st) +"\n"
-            scc = self.simplifyAssignment(st,"12*MSG_ID+MLEN==2-$BUFF$[445+$$msg_id]-$destAddr")
-            print (scc)
-            llst = self.findParentFieldsUsingConsts(st)
-            print(llst)
         return s,ss

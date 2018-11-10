@@ -91,6 +91,7 @@ class BaseCodeGenerator:
     typeTableEnum       = {"enum8":"int8","enum16":"int16","enum32":"int32"}
     typeSizeTable       = {"char":1,"bool":1,"wchar":2,"byte":1}
     packBuffName        = "buff"  
+    buffPosName         = "pos"  
     packBuffType        = "char"
     # define the languages (use the file extension)
     LANG_C              = "c"  
@@ -279,6 +280,8 @@ class BaseCodeGenerator:
                     return anno['value']
                 if "string" in anno:
                     return anno['string']        
+                if "expr" in anno:
+                    return anno['expr']        
         if "parentName" in structt:
             parnt = structt["parentName"]
             parStruct = structDict[parnt]
@@ -288,8 +291,74 @@ class BaseCodeGenerator:
         #  not sure that this is the best approach
         if annotag in annotateDict: return annotagDict[annotag]
         return None        
+
 #        for itm in lst:
 #            if itm['name'] == sstr: return itm
+    def replaceSymbsInFieldAssgn(self,structt,expr):
+        # replace predefined symbols
+        if expr == "$BUFF$":
+            return self.packBuffName
+            #rs.append(self.packBuffName)
+        elif expr == "$INDX$":
+            return self.buffPosName
+            #rs.append(self.buffPosName)
+        elif expr == "$TIME_UNIX$":
+            # TODO: get real time and convert to unix time
+            rs.append("99999999")
+        # if start with "$$" find byte offset position 
+        # of field in buff at end of this field
+        elif expr[0] == "$" and expr[1] == "$":  
+            s1,pres = self.genPackFieldPosCalc(structt,expr[2:],includeField=True)    
+            if pres:
+                s1,__  = self.simplifyConstsInEq(s1)
+                return s1
+        # if start with "$" find byte offset position 
+        # of field in buff at start of this field
+        elif expr[0] == "$":  # needs buffpos/address of the field
+            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
+            if pres: return s1
+
+        # TODO: old stuff - remove
+        if expr[0] == "&":  # needs buffpos/address of the field
+            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
+            if pres: return s1
+        if expr[-1] == "&":  # needs position in buff including this field
+            s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)    
+            if pres:
+                s1,__  = self.simplifyConstsInEq(s1)
+                return s1
+        return expr
+    def findParentFieldsUsingConsts(self,structt):
+        """
+          Parents can assign constant symbols 
+          to fields. Child classes can redefine these values 
+          in which cases these fields should re-assign the values.
+          This function will determine if such constans are 
+          used in the parent fields.
+
+          @return a list of fields that are re-assigned
+        """
+        fieldlist = []
+        parnt = self.getParent(structt)
+        if parnt == None: return fieldlist
+        for fld in parnt["body"]:
+            if "value" in fld:
+                splt = self.splitAssigmentEquation(fld["value"])    
+                # look a each symbol and replace known values
+                for elm in splt:
+                    # just skip if empty
+                    if elm == "": continue
+                    # see if in symbol list     
+                    sym = self.lookupConst(structt,elm)   
+                    if sym is not None:  
+                        fieldlist.append(fld)   
+                        break # at least one present so stop looking
+        return fieldlist
+
+    #assignemtSplitSymbols = r"([\[\]\+\-\*/\)\(\=\>\<\!)])"
+    # have a single split function to split the assignments consitently
+    def splitAssigmentEquation(self,eqs):
+        return re.split(r"([\[\]\+\-\*/\)\(\=\>\<\!)])",eqs)
     def simplifyAssignment(self,structt,eqs):
         # first handle it if it is a string
         if eqs[0] == '"': return eqs
@@ -297,14 +366,24 @@ class BaseCodeGenerator:
         sym = self.lookupConst(structt,eqs)     
         if sym is not None: return sym   
         # TODO: partial replacement, e.g. CONST_LEN+2
-        sl = re.split(r"([\+\-\*/\)\(\=\>\<\!)])",eqs)
+        #sl = re.split(r"([\[\]\+\-\*/\)\(\=\>\<\!)])",eqs)
+        splt = self.splitAssigmentEquation(eqs)
         rs = []
-        for s in sl:
-            sym = self.lookupConst(structt,s)     
+        # look a each symbol and replace known values
+        for elm in splt:
+            # just skip if empty
+            if elm == "": continue
+            # see if in symbol list and replace    
+            sym = self.lookupConst(structt,elm)     
             if sym is not None:
                 rs.append(sym)
+            # special reserved symbols start with $
+            elif elm[0] == "$":
+                pp = self.replaceSymbsInFieldAssgn(structt,elm)
+                rs.append(pp)
+            # else just keep the original
             else:
-                rs.append(s)
+                rs.append(elm)
         return "".join(rs)
         # TODO: function call replacements e.g. CRC()
         return eqs
@@ -572,17 +651,6 @@ class CcodeGenerator(BaseCodeGenerator):
             #s += "    pos    += " + self.funcPackNamePrefix + f["type"].capitalize() 
             #s += "(" +self.packBuffName +", pos,"+ f["name"] + ");\n"
         return s 
-    def replaceSymbsInFieldAssgn(self,structt,expr):
-        # TODO: add more stuff such as expressions with keywords
-        if expr[0] == "&":  # needs buffpos/address of the field
-            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
-            if pres: return s1
-        if expr[-1] == "&":  # needs position in buff including this field
-            s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)    
-            if pres:
-                s1,__  = self.simplifyConstsInEq(s1)
-                return s1
-        return expr
 
     def genUnpackFields(self,structt):
         if self.isStructDeclUsed(structt):

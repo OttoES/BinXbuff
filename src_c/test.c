@@ -15,7 +15,7 @@ void PROCESS_MSG_MsgHeader(uint8_t destAddr,uint8_t sourceAddr,enum comnd msg_id
 #define ADDR_DEST1     122
 #define SEQ_RD1        108
 #define SEQ_RD_REPLY  105
-#define V_XX          12345
+#define V_XX          0x1122
 
 
 void PROCESS_MSG_ReadMsg(uint8_t destAddr,uint8_t sourceAddr,enum comnd msg_id,uint8_t subCmd,uint16_t mlen,uint16_t seqNr,uint16_t xxxxx,enum subRead subCmd2,uint16_t rlen,uint16_t seqNr2)
@@ -75,6 +75,8 @@ void read_msg_reply(void)
 {
     uint8_t  buff[1000];
     infoLog_t log[10];
+    log[0].etype = 13;
+    log[0].seatNr = 14;
     log[0].seatLeftAux1 = V_LEFT;
     printf("Start\n");
     int ret =  READ_MSG_REPLY_pack(buff,1000, ADDR_DEST,ADDR_SRC,DINFO_EVENT_LOG,SEQ_RD_REPLY,V_XX,log);

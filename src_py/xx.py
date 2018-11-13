@@ -68,8 +68,7 @@ int MSG_HEADER_MsgHeader::pack(uint8_t  buff[],int bufSize,  destAddr, sourceAdd
     if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   # buffer to small
     #  this is a fixed assigned field
     const uint32_t __magic = (const uint32_t) (0xEFBE0D90 );
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)__magic;
+    buff[pos++] = (uint8_t)(__magic);
     buff[pos++] = (uint8_t)(__magic>>8);
     buff[pos++] = (uint8_t)(__magic>>16);
     buff[pos++] = (uint8_t)(__magic>>24);
@@ -151,8 +150,7 @@ int READ_MSG_ReadMsg::pack(uint8_t  buff[],int bufSize,  destAddr, sourceAddr, s
     if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   # buffer to small
     #  this is a fixed assigned field
     const uint32_t __magic = (const uint32_t) (0xEFBE0D90 );
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)__magic;
+    buff[pos++] = (uint8_t)(__magic);
     buff[pos++] = (uint8_t)(__magic>>8);
     buff[pos++] = (uint8_t)(__magic>>16);
     buff[pos++] = (uint8_t)(__magic>>24);
@@ -225,8 +223,7 @@ int INFO_LOG_infoLog::pack(uint8_t  buff[],int bufSize, enum SubCmdRead etype, s
     buff[pos++] = (uint8_t)(seatNr);
     buff[pos++] = (uint8_t)(seatLeftAux1);
     buff[pos++] = (uint8_t)(seatRightAux1);
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)res;
+    buff[pos++] = (uint8_t)(res);
     buff[pos++] = (uint8_t)(res>>8);
     buff[pos++] = (uint8_t)(res>>16);
     buff[pos++] = (uint8_t)(res>>24);
@@ -273,8 +270,7 @@ int READ_MSG_REPLY_ReadMsgReply::pack(uint8_t  buff[],int bufSize,  destAddr, so
     if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   # buffer to small
     #  this is a fixed assigned field
     const uint32_t __magic = (const uint32_t) (0xEFBE0D90 );
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)__magic;
+    buff[pos++] = (uint8_t)(__magic);
     buff[pos++] = (uint8_t)(__magic>>8);
     buff[pos++] = (uint8_t)(__magic>>16);
     buff[pos++] = (uint8_t)(__magic>>24);
@@ -347,8 +343,7 @@ int SET_PROFILE_SetProfile::pack(uint8_t  buff[],int bufSize,  destAddr, sourceA
     if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   # buffer to small
     #  this is a fixed assigned field
     const uint32_t __magic = (const uint32_t) (0xEFBE0D90 );
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)__magic;
+    buff[pos++] = (uint8_t)(__magic);
     buff[pos++] = (uint8_t)(__magic>>8);
     buff[pos++] = (uint8_t)(__magic>>16);
     buff[pos++] = (uint8_t)(__magic>>24);
@@ -372,8 +367,7 @@ int SET_PROFILE_SetProfile::pack(uint8_t  buff[],int bufSize,  destAddr, sourceA
     buff[pos++] = (uint8_t)(__crc2>>8);
     #  this is a fixed assigned field
     const int32_t id = (const int32_t) (1);
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)id;
+    buff[pos++] = (uint8_t)(id);
     buff[pos++] = (uint8_t)(id>>8);
     buff[pos++] = (uint8_t)(id>>16);
     buff[pos++] = (uint8_t)(id>>24);
@@ -405,11 +399,13 @@ int SET_PROFILE_SetProfile::unpack(uint8_t  buff[],int buflen )
     #  this is an assigned value but not verified here
     char  surname[20];
     memcpy(surname,buff+pos,1*20);
+    pos += 1*20;
     enum ename  fieldvarname = (enum ename)buff[pos++] ;
     enum Gender  gender = (enum Gender)buff[pos++] ;
     int8_t  dlen = (int8_t)buff[pos++] ;
     char  addit[dlen];
     memcpy(addit,buff+pos,1*dlen);
+    pos += 1*dlen;
     if ( pos > buflen) return ERR_BUFF_OUT_OF_DATA;
     // no call after unpack
     return  pos;
@@ -432,8 +428,7 @@ int DEMO_INTL_FUNC_CALL_DemoIntlFuncCall::pack(uint8_t  buff[],int bufSize,  vxx
     if (buffLen > bufSize) return ERR_BUFF_OUT_OF_DATA;   # buffer to small
     buff[pos++] = (uint8_t)(vxx1);
     buff[pos++] = (uint8_t)(vxx1>>8);
-    #  it is faster to copy byte by byte than calling memcpy()
-    buff[pos++] = (uint8_t)vxx2;
+    buff[pos++] = (uint8_t)(vxx2);
     buff[pos++] = (uint8_t)(vxx2>>8);
     buff[pos++] = (uint8_t)(vxx2>>16);
     buff[pos++] = (uint8_t)(vxx2>>24);

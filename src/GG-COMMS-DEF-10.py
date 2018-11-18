@@ -1,7 +1,7 @@
 from genBase import (parseBxbDefStr,parseBxbDefFile,MarkdownGenerator,CcodeGenerator,ppprint,BaseCodeGenerator,OOpythonGenerator)
 from bxb2ObjCode import OOcodeGenerator
 import os
-
+    
 def saveToFile(fname,s):
     os.makedirs(os.path.dirname(fname), exist_ok=True)
     text_file = open(fname, "w")    

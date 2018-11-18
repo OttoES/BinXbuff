@@ -99,6 +99,124 @@ int MsgHeader::unpack(uint8_t  buff[],int buflen )
     return  pos;
 } // end
 
+//============== base =================
+
+
+// This is the base message parser that should be called with
+// the byte array to be translated to a spesific message
+// First determine the struct/message type based on MSG_ID and
+// MSG_COND and then unpack
+int objFactory(uint8_t  buff[],int buflen )
+{
+    int pos = 0;
+    uint32_t  __magic = (uint32_t)(buff[pos] + (buff[pos+1]<<8) + (((uint32_t)buff[pos+2])<<16) + (((uint32_t)buff[pos+3])<<24)) ;
+    pos +=4;
+    //  check the field value is equal to the expected value
+    if (__magic != 0xEFBE0D90 ) return ERR_VALUE_NOT_EQUAL;
+    uint8_t  destAddr = (uint8_t)buff[pos++] ;
+    uint8_t  sourceAddr = (uint8_t)buff[pos++] ;
+    enum comnd  msg_id = (enum comnd)buff[pos++] ;
+    //  this is an assigned value but not verified here
+    uint8_t  subCmd = (uint8_t)buff[pos++] ;
+    uint16_t  mlen = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+    pos +=2;
+    //  this is an assigned value but not verified here
+    uint16_t  seqNr = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+    pos +=2;
+    uint16_t  xxxxx = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+    pos +=2;
+    uint16_t  __crc2 = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+    pos +=2;
+    //  check the field value is equal to the returned function value
+    // call user function with &destAddr and xxxxx&
+    const uint16_t ret___crc2 = (const uint16_t) (crc16(buff,4,14));
+    if (ret___crc2 != __crc2) return ERR_VALUE_NOT_EQUAL;
+    
+    if (msg_id == CMD_NONE) {    // MsgHeader
+      // unpack each field into a variable
+      uint32_t  __magic = (uint32_t)(buff[pos] + (buff[pos+1]<<8) + (((uint32_t)buff[pos+2])<<16) + (((uint32_t)buff[pos+3])<<24)) ;
+      pos +=4;
+      uint8_t  destAddr = (uint8_t)buff[pos++] ;
+      uint8_t  sourceAddr = (uint8_t)buff[pos++] ;
+      enum comnd  msg_id = (enum comnd)buff[pos++] ;
+      uint8_t  subCmd = (uint8_t)buff[pos++] ;
+      uint16_t  mlen = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+      pos +=2;
+      uint16_t  seqNr = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+      pos +=2;
+      uint16_t  xxxxx = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+      pos +=2;
+      uint16_t  __crc2 = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+      pos +=2;
+      if (pos > buflen)    {
+        // error
+        printf("Message MsgHeader to short");
+        return ERR_BUFF_OUT_OF_DATA;
+      }
+      // call the (external user) defined function with the unpacked data
+      PROCESS_MSG_MsgHeader(destAddr,sourceAddr,msg_id,subCmd,mlen,seqNr,xxxxx);
+    } else 
+    if (msg_id == CMD_READ) {    // ReadMsg
+      // unpack each field into a variable
+      enum subRead  subCmd2 = (enum subRead)buff[pos++] ;
+      uint16_t  rlen = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+      pos +=2;
+      uint16_t  seqNr2 = (uint16_t)(buff[pos] + (buff[pos+1]<<8));
+      pos +=2;
+      if (pos > buflen)    {
+        // error
+        printf("Message ReadMsg to short");
+        return ERR_BUFF_OUT_OF_DATA;
+      }
+      // call the (external user) defined function with the unpacked data
+      PROCESS_MSG_ReadMsg(destAddr,sourceAddr,msg_id,subCmd,mlen,seqNr,xxxxx,subCmd2,rlen,seqNr2);
+    } else 
+    if ((msg_id == CMD_READ_REPLY) && ((subCmd == DINFO_EVENT_LOG)  )) {
+      // unpack each field into a variable
+      int ii;
+      infoLog_t  log[10];
+      for (ii = 0; ii < 10 ;ii++) {
+        int ret = INFO_LOG_unpack(&log[ii],&buff[pos],buflen-pos);
+        if (ret < 0) return ret;
+        pos += ret;
+      } // for ii
+      if (pos > buflen)    {
+        // error
+        printf("Message ReadMsgReply to short");
+        return ERR_BUFF_OUT_OF_DATA;
+      }
+      // call the (external user) defined function with the unpacked data
+      PROCESS_MSG_ReadMsgReply(destAddr,sourceAddr,msg_id,subCmd,mlen,seqNr,xxxxx,log);
+    } else 
+    if (msg_id == 0x1155) {    // SetProfile
+      // unpack each field into a variable
+      int32_t  id = (int32_t)(buff[pos] + (buff[pos+1]<<8) + (((uint32_t)buff[pos+2])<<16) + (((uint32_t)buff[pos+3])<<24)) ;
+      pos +=4;
+      char  surname[20];
+      memcpy(surname,buff+pos,1*20);
+      pos += 1*20;
+      enum ename  fieldvarname = (enum ename)buff[pos++] ;
+      enum Gender  gender = (enum Gender)buff[pos++] ;
+      int8_t  dlen = (int8_t)buff[pos++] ;
+      char  addit[dlen];
+      memcpy(addit,buff+pos,1*dlen);
+      pos += 1*dlen;
+      if (pos > buflen)    {
+        // error
+        printf("Message SetProfile to short");
+        return ERR_BUFF_OUT_OF_DATA;
+      }
+      // call the (external user) defined function with the unpacked data
+      PROCESS_MSG_SetProfile(destAddr,sourceAddr,msg_id,subCmd,mlen,seqNr,xxxxx,id,surname,fieldvarname,gender,dlen,addit);
+    } else 
+    {
+      // error
+      printf("Unknown message tag");
+      return ERR_TAG_UNKNOWN;
+    }
+    return pos;
+} // end
+
 // =======================================
 // Class ReadMsg implementation
 // ---------------------------------------

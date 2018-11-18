@@ -2,7 +2,7 @@
 @version    =  "1.0.dev1"
 @copyright  =  "Copyright OttoES (2018)"
 @doc_title  =  "Greatguide Communications Protocol Definition"
-@doc_header =  "BXB definition document"
+@doc_header =  "BXB est definition document"
 @doc_intro  =  '''This is the definiton of the message protocol
                   used between the seat units and the master streamer.
                   Messages and tags marked with "DevOnly" should be 
@@ -94,7 +94,8 @@ struct ReadMsg headedby MsgHeader
 <MSG_LEN=0>
 <IS_MSG = 0x55>
 {
-      
+    RETAG msg_id = 99;
+    RETAG subCmd = 59;
     enum8 subRead  subCmd2 { a=1 ; b=2;};         // 
     uint16         rlen    = 0;     // no data send with this message
     /*

@@ -1,5 +1,5 @@
 
-# BXB definition document
+# BXB est definition document
 
 ### GGCommsDefinition version 1.0.dev1
 ___
@@ -117,6 +117,19 @@ Fields in this structure
   and state changes. The seat unit should respond with a CMD_READ_ACK or 
   CMD_NAC on failure.
 
+
+
+**Message tag values**
+The values of the following field(s) from parent classes are overridden
+
+|Tag|Value|From|Comment|
+|------|-----|-----|------------------------------|
+|msg_id|99|MsgHeader||
+|subCmd|59|MsgHeader||
+
+**Message TAGS**
+* msg_id  =  99
+* subCmd  =  59
 
 
 **Annotations**

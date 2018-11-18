@@ -11,7 +11,7 @@ from pyparsing import (Word, alphas, alphanums, Regex, Suppress, Forward,
     Group, oneOf, ZeroOrMore, Optional, delimitedList, Keyword, cStyleComment, cppStyleComment,
     restOfLine, quotedString,QuotedString, Dict)
 
-VERSION      = "0.1.dev2"
+VERSION      = "0.1.dev3"
 
 enumList     = []
 structList   = []
@@ -108,7 +108,10 @@ structAnno          = ZeroOrMore(AT+Group(IDENT + EQ + valvarAssign  ))
 #structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + INT("value")) + LARGER)
 structLocals        = ZeroOrMore(LESS+Group(IDENT + EQ + (INT("value") | EXPR  ) ) + LARGER)
 structAdds          = structAnno("anno") + structLocals("localConst")
-structDefn          = (structDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
+# this is a re-assigment of a tag value defined in one of the parent classes
+retagid              = ZeroOrMore(Group(CMNT + "RETAG"+IDENT+EQ+EXPR+SEMI+CMNT2))
+
+structDefn          = (structDecl + structAdds + LBRACE +retagid("retags") + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #######structDefn          = (CMNT + STRUCT_ - IDENT + Optional(HEADEDBY_ + IDENT("parentName").setParseAction(addToHeaderDict))  + Optional(AT+IDENT("annoName") + EQ + INT("annoValue")) +  Optional(LESS+IDENT("defName") + EQ + INT("defValue") + LARGER) + LBRACE + structtBody("body") + RBRACE).setParseAction(addStructToList)
 #messageDefn         = (messageDecl + structAdds + LBRACE + structtBody("body") + RBRACE).setParseAction(addMessageToList)
 
@@ -120,18 +123,22 @@ typespec            = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64
 typeint             = oneOf("""int8 uint8 int16 uint16 int32 int64 uint32 uint64 bool char wchar byte""")
 typestr             = oneOf("""string zstring ustring zustring""")
 typeenum            = oneOf("""enum8 enum16 enum32""")
+
+# TODO: remove - replaced with more generic types, function calls + @TAG
 typetag             = oneOf("""TAG8 TAG16 TAG32 MSGID8 MSGID16""")
 typeres             = oneOf("""STRUCTLEN8 STRUCTLEN16 CRC8 CRC16 CRC32""")
 
 
 #typespec            =  typestd | typetag | typeres | ident
 arrDec              = Optional(LBRACK + EXPR("arrLen") + RBRACK)
-varEndian           = Optional("@BE",default="@LE")("endianess")
-annoCheckVal        = Optional("@CHECK")("annoCheckVal")
+fieldAnnoEndian     = Optional("@BE",default="@LE")("endianess")
+fieldAnnoCheckVal   = Optional("@CHECK")("annoCheckVal")
+fieldAnnoTag        = Optional("@TAG")("annoMsgTag")
 #annoFunCall         = Optional(EQ + AT + CEXPR("callName")+LPAR+ CARG("arg1")+ COMMA + CARG("arg2") +RPAR)
+# TODO: remove- replaced with more generic call from expression
 annoFunCall         = Optional(EQ + AT + IDENT("callName")+LPAR+ CARG("arg1")+ COMMA + CARG("arg2") +RPAR)
 
-fieldtag            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
+#fieldtag? fieldvar            = typetag("type")  + IDENT + Optional(EQ + INT("value"))
 #fieldint            = typeint("type")  + Optional(LBRACK + EXPR("arrLen") + RBRACK)  + IDENT + Optional(EQ + EXPR("value"))
 ##fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value")) + Optional(EQ + AT + CEXPR("callName")+LPAR+ CIDENT("arg1")+ COMMA + CIDENT("arg2") +RPAR)
 fieldint            = typeint("type")  + arrDec  + IDENT +  Optional(EQ + EXPR("value")) + annoFunCall
@@ -139,9 +146,11 @@ fieldstr            = typestr("type")  + IDENT + Optional(EQ + quotedString("val
 #fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + Dict( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
 fieldenumInline     = (typeenum("type") + IDENT("enumName") + IDENT + LBRACE + ( ZeroOrMore( Group(IDENT + EQ + INT("value") + SEMI + CMNT2 ) ))('values') + RBRACE).setParseAction(addEnumToList)
 fieldenum           = typeenum("type") + IDENT("enumName") + IDENT + Optional(EQ + IDENT("value"))
+# TODO: is this still used, what for?
 fieldres            = typeres("type")  + IDENT + LBRACK + IDENT("rangeStart")+COLON+ IDENT("rangeEnd")+RBRACK
 #fieldres            = typeres("type")  + IDENT + LPAR + IDENT("rangeStart")+".."+ IDENT("rangeEnd")+RPAR
 
+# this is a catch all for undefined field types. This will be interpreted as a message within a message
 fieldstruct         = IDENT("type") + arrDec   + IDENT
 
 #rvalue              = INT | TRUE_ | FALSE_ | IDENT
@@ -149,11 +158,13 @@ fieldstruct         = IDENT("type") + arrDec   + IDENT
 ##fieldDefn           = (( REQUIRED_ | OPTIONAL_ | ARRAY_ )("fieldQualifier") - 
 ##                      typespec("typespec") + ident("ident") + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI) + Optional(CMNT2("comment2"))
 ###fieldDefn           = typespec("type") + ident + EQ + integer("value") + ZeroOrMore(fieldDirective) + SEMI + Optional(CMNT2("comment2"))
-field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldtag | fieldres | fieldstruct 
+#field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldtag | fieldres | fieldstruct 
+field               = fieldint | fieldstr | fieldenumInline | fieldenum | fieldres | fieldstruct 
 ####fieldDefn           = CMNT + field  + SEMI + Optional(CMNT2)
 #fieldEndian         = optional("@LE"("endian") | "@BE")
 #fieldNoparam        = optional("@LE" | "@BE")
-fieldDefn           = CMNT + field  + varEndian + annoCheckVal + SEMI + Optional(CMNT2)
+#####fieldDefn           = CMNT + field  + fieldAnnoEndian + fieldAnnoTag + fieldAnnoCheckVal + SEMI + Optional(CMNT2)
+fieldDefn           = CMNT + field  + fieldAnnoEndian + fieldAnnoTag + fieldAnnoCheckVal + SEMI + Optional(CMNT2)
 
 # enumDefn        ::= 'enum' ident '{' { ident '=' integer ';' }* '}'
 ##enumDefn            = CMNT + ENUM_("typespec") - ident('name') +  LBRACE + Dict( ZeroOrMore( Group(ident("name") + EQ + integer("value") + SEMI + CMNT2 ) ))('values') + RBRACE
@@ -172,6 +183,7 @@ enumDefn            = (CMNT + ENUM_("type") + IDENT("enumName") +  LBRACE + ( Ze
 # messageBody     ::= { fieldDefn | enumDefn | structDefn | extensionsDefn | structExtension }*
 ##messageBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn | extensionsDefn | structExtension) ))
 ###structtBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn | structExtension) ))
+#structtBody << Group(ZeroOrMore( Group(retagid | fieldDefn | enumDefn | structDefn ) ))
 structtBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn ) ))
 
 # methodDefn ::= 'rpc' ident '(' [ ident ] ')' 'returns' '(' [ ident ] ')' ';'
@@ -186,7 +198,7 @@ structtBody << Group(ZeroOrMore( Group(fieldDefn | enumDefn | structDefn ) ))
 ##packageDirective = Group(PACKAGE_ - delimitedList(ident, '.', combine=True) + SEMI)
 
 
-
+# TODO: not used???
 importDirective = IMPORT_ - quotedString("importFileSpec") + SEMI
 
 optionDirective = OPTION_ - IDENT("optionName") + EQ + quotedString("optionValue") + SEMI

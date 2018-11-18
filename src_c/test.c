@@ -14,8 +14,8 @@ void PROCESS_MSG_MsgHeader(uint8_t destAddr,uint8_t sourceAddr,enum comnd msg_id
 #define ADDR_SRC1      111
 #define ADDR_DEST1     122
 #define SEQ_RD1        108
-#define SEQ_RD_REPLY  105
-#define V_XX          0x1122
+#define SEQ_RD_REPLY   105
+#define V_XX           0x1122
 
 
 void PROCESS_MSG_ReadMsg(uint8_t destAddr,uint8_t sourceAddr,enum comnd msg_id,uint8_t subCmd,uint16_t mlen,uint16_t seqNr,uint16_t xxxxx,enum subRead subCmd2,uint16_t rlen,uint16_t seqNr2)
@@ -45,7 +45,11 @@ void PROCESS_MSG_ReadMsgReply(uint8_t destAddr,uint8_t sourceAddr,enum comnd msg
     TEST_ASSERT_EQUAL(ADDR_SRC,sourceAddr);
     TEST_ASSERT_EQUAL(SEQ_RD_REPLY,seqNr);
     TEST_ASSERT_EQUAL(V_XX,xxxxx);
+    UNITY_NEW_TEST(" Reply logs");
     TEST_ASSERT_EQUAL(V_LEFT,log[0].seatLeftAux1);
+    TEST_ASSERT_EQUAL(113,log[4].etype);
+    TEST_ASSERT_EQUAL(114,log[4].seatNr);
+    TEST_ASSERT_EQUAL(V_LEFT,log[9].seatRightAux1);
 }
 
 void PROCESS_MSG_SetProfile(uint8_t destAddr,uint8_t sourceAddr,enum comnd msg_id,uint8_t subCmd,uint16_t mlen,uint16_t seqNr,uint16_t xxxxx,int32_t id,char surname[],enum ename fieldvarname,enum Gender gender,int8_t dlen,char addit[])
@@ -67,6 +71,9 @@ void read_msg(void)
 {
     uint8_t  buff[1000];
     int ret =  READ_MSG_pack(buff,1000, ADDR_DEST1,ADDR_SRC1,12,SEQ_RD1,V_XX,2,SEQ_RD1+1);
+    // msg id check
+    TEST_ASSERT_EQUAL(0x15,buff[6]);
+    UNITY_NEW_TEST("objFactory Read");
     ret = MSG_HEADER_objFactory(buff,ret );
 }
 
@@ -78,8 +85,14 @@ void read_msg_reply(void)
     log[0].etype = 13;
     log[0].seatNr = 14;
     log[0].seatLeftAux1 = V_LEFT;
+    log[4].etype =  113;
+    log[4].seatNr = 114;
+    log[9].seatRightAux1 = V_LEFT;
     printf("Start\n");
     int ret =  READ_MSG_REPLY_pack(buff,1000, ADDR_DEST,ADDR_SRC,DINFO_EVENT_LOG,SEQ_RD_REPLY,V_XX,log);
+    // msg id check
+    TEST_ASSERT_EQUAL_HEX8(0x16,buff[6]);
+    UNITY_NEW_TEST("objFactory Reply");
     ret = MSG_HEADER_objFactory(buff,ret );
 
     printf("\n--Done--\n");

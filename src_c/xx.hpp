@@ -86,7 +86,7 @@ class MsgHeader {
     */
    static int pack(uint8_t  buff[],int bufSize, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,uint16_t xxxxx);
   
-   /* This is a static function to pack data. 
+   /* This function packs the member fields into the buffer array. 
     @param buff[]     buffer into which data should be packed 
     @param pos        start position in buffer 
     @return if > 0    position in array of last extracted data
@@ -121,7 +121,7 @@ class ReadMsg : public MsgHeader
     */
    static int pack(uint8_t  buff[],int bufSize, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,uint16_t xxxxx,enum subRead subCmd2,uint16_t seqNr2);
   
-   /* This is a static function to pack data. 
+   /* This function packs the member fields into the buffer array. 
     @param buff[]     buffer into which data should be packed 
     @param pos        start position in buffer 
     @return if > 0    position in array of last extracted data
@@ -157,7 +157,7 @@ class infoLog {
     */
    static int pack(uint8_t  buff[],int bufSize, enum SubCmdRead etype,uint8_t seatNr,uint8_t seatLeftAux1,uint8_t seatRightAux1,uint32_t res);
   
-   /* This is a static function to pack data. 
+   /* This function packs the member fields into the buffer array. 
     @param buff[]     buffer into which data should be packed 
     @param pos        start position in buffer 
     @return if > 0    position in array of last extracted data
@@ -190,7 +190,7 @@ class ReadMsgReply : public MsgHeader
     */
    static int pack(uint8_t  buff[],int bufSize, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,uint16_t xxxxx,infoLog_t log[]);
   
-   /* This is a static function to pack data. 
+   /* This function packs the member fields into the buffer array. 
     @param buff[]     buffer into which data should be packed 
     @param pos        start position in buffer 
     @return if > 0    position in array of last extracted data
@@ -228,7 +228,7 @@ class SetProfile : public MsgHeader
     */
    static int pack(uint8_t  buff[],int bufSize, uint8_t destAddr,uint8_t sourceAddr,uint8_t subCmd,uint16_t seqNr,uint16_t xxxxx,char surname[],enum ename fieldvarname,enum Gender gender,int8_t dlen,char addit[]);
   
-   /* This is a static function to pack data. 
+   /* This function packs the member fields into the buffer array. 
     @param buff[]     buffer into which data should be packed 
     @param pos        start position in buffer 
     @return if > 0    position in array of last extracted data
@@ -264,7 +264,7 @@ class DemoIntlFuncCall {
     */
    static int pack(uint8_t  buff[],int bufSize, uint16_t vxx1,uint32_t vxx2,infoLog_t infox,uint8_t infoLen,infoLog_t infoarr[]);
   
-   /* This is a static function to pack data. 
+   /* This function packs the member fields into the buffer array. 
     @param buff[]     buffer into which data should be packed 
     @param pos        start position in buffer 
     @return if > 0    position in array of last extracted data

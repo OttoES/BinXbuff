@@ -31,17 +31,17 @@ def convertCamelToSnake(name):
 def convertSnakeToCamelCase(column):
    first, *rest = column.split('_')
    return first + ''.join(word.capitalize() for word in rest)
-    
+
 def parseBxbDefFile(fileName):
     parser.parseFile(fileName)
-    # docgen = MarkdownGenerator() 
+    # docgen = MarkdownGenerator()
     # s = docgen.genAll()
     # print(s)
 
 
 def parseBxbDefStr(defStr):
     parser.parseString(defStr)
-    # docgen = MarkdownGenerator() 
+    # docgen = MarkdownGenerator()
     # s = docgen.genAll()
     # print(s)
 
@@ -72,13 +72,13 @@ class BaseCodeGenerator:
     funcProcessBuffName = "CallStoreSendBuffer"
     funcUnpackNamePrefix= "BIN_unpack"
     funcProcessFunPrefix= "PROCESS_MSG_"              # prefix for the functions that process incoming messages
-    noTypeName          = "void" 
+    noTypeName          = "void"
     intTypeName         = "int"
     bufTypeName         = "uint8_t"
     lenTypeName         = "size_t"                  # buffere length etc
     singletonFuncDecl   = "\n// singleton function\n"# will be static if in a class
     privateFuncDecl     = "static "                  # will be private if in a class
-    errorHandlerName    = "printf"                   # function that will be called on an error  
+    errorHandlerName    = "printf"                   # function that will be called on an error
     constErrBuffOutOfBounds = "ERR_BUFF_OUT_OF_BOUNDS"
     constErrBuffShort   = "ERR_BUFF_OUT_OF_DATA"
     constErrUnknownTag  = "ERR_TAG_UNKNOWN"
@@ -86,18 +86,18 @@ class BaseCodeGenerator:
     constErrNotEqual    = "ERR_VALUE_NOT_EQUAL"
     typeTable1          = {"bool":"bool","char":"char","int":"int"}
     typeTable2          = {"string":"char","zstring":"char","ustring":"wchar","uzstring":"wchar"}
-    # these types are internally generated and not passed in by the user  
+    # these types are internally generated and not passed in by the user
     typeTableLoc        = {"CRC8":"uint8","CRC16":"uint16","CRC32":"uint32","MSG_ID16":"uint16"}
     typeTableEnum       = {"enum8":"int8","enum16":"int16","enum32":"int32"}
     typeSizeTable       = {"char":1,"bool":1,"wchar":2,"byte":1}
-    buffArrName         = "buff"  
-    buffPosName         = "pos"  
+    buffArrName         = "buff"
+    buffPosName         = "pos"
     packBuffType        = "char"
     # define the languages (use the file extension)
-    LANG_C              = "c"  
-    LANG_CPP            = "cpp"  
-    LANG_PY             = "py"  
-    LANG_JAVA           = "java"  
+    LANG_C              = "c"
+    LANG_CPP            = "cpp"
+    LANG_PY             = "py"
+    LANG_JAVA           = "java"
     def __init__(self,bxbDef= None):
         if bxbDef is not None:
             pp = parser.parseString(bbxDef)
@@ -107,18 +107,18 @@ class BaseCodeGenerator:
         pprint(enumList)
         pprint(structList)
     #TODO: can it be removed?
-    def lookupType(self,vartype):  
+    def lookupType(self,vartype):
         if vartype in self.typeTable2: return  self.typeTable2[vartype]
         if vartype in self.typeTable1: return  self.typeTable1[vartype]
-        return vartype+self.typePostfix          
+        return vartype+self.typePostfix
     def lookupFieldType(self,fieldd):
         vartype = fieldd["type"]
         if vartype.startswith("enum"):
             return "enum "+fieldd["enumName"]
         if vartype in self.typeTable2: return  self.typeTable2[vartype]
         if vartype in self.typeTable1: return  self.typeTable1[vartype]
-        return vartype+self.typePostfix          
-    def lookupTypeSize(self,vartype):  
+        return vartype+self.typePostfix
+    def lookupTypeSize(self,vartype):
         # handel all the non standard cases that is in the table
         if vartype in self.typeSizeTable: return  self.typeSizeTable[vartype]
         # do the standard cases where the bit isze is embedded in the type name
@@ -128,9 +128,9 @@ class BaseCodeGenerator:
         if vartype.find("64")>0 : return 8
         return -100000  # this is an n error
     def getParent(self,structt):
-        if not "parentName" in structt: return None 
+        if not "parentName" in structt: return None
         parnt = structt["parentName"]
-        return structDict[parnt]  
+        return structDict[parnt]
     def makeConsVarDecl(self,varType,varName,varVal):
         #varType = self.lookupType(varType)
         return "const " + varType + " "+varName  + " = (const "+varType+") ("+varVal+  ");"
@@ -139,7 +139,7 @@ class BaseCodeGenerator:
 
     def genVarOnlyDecl(self,varType,varName,arrayLen = None):
         ''' Generate variable declaration of the given type.
-            If an array size given it will be declared as an 
+            If an array size given it will be declared as an
             array of that size.
             Note that arrayLen of 0 is handeled differently:
             it will be declared as an array argument using "[]"
@@ -168,45 +168,45 @@ class BaseCodeGenerator:
         if "name" in annotateDict:
             s += "  Name      : "+cleanstr(annotateDict["name"]) + "\n"
         if "version" in annotateDict:
-            s += "  Version   : " + cleanstr(annotateDict["version"]) + "\n"   
+            s += "  Version   : " + cleanstr(annotateDict["version"]) + "\n"
         if "copyright" in annotateDict:
-            s += "  Copyright : " + cleanstr(annotateDict["copyright"]) + "\n"   
+            s += "  Copyright : " + cleanstr(annotateDict["copyright"]) + "\n"
         return s + self.codeCommentEnd + "\n"
-    # def genPackVar(self,buff,buffpos,vartype,varname, varval): 
-    #     #if vartype in self.typeTable2: 
+    # def genPackVar(self,buff,buffpos,vartype,varname, varval):
+    #     #if vartype in self.typeTable2:
     #     #    return self.funcPackNamePrefix+vartype+"("+buff+", "+buffpos+", "+varname+","+varval+");"
     #     return self.funcPackCallPrefix+vartype+"("+buff+", "+buffpos+", "+varname+","+varval+");"
-    def genArg(self,fields):    
+    def genArg(self,fields):
         s = ""
         for f in fields:
             s = s + f["name"] + ","
-        return s[:-1] 
-    def genTypedArg(self,fields):    
+        return s[:-1]
+    def genTypedArg(self,fields):
         s = ""
         for f in fields:
-            # if the field is in the locked list it is internally 
+            # if the field is in the locked list it is internally
             # generated and should not be in the argument list so skip it
-            if f["type"] in self.typeTableLoc: 
+            if f["type"] in self.typeTableLoc:
                 continue
             if "arrLen" in f:
                 # 0 will force it to use [] in declaration
-                arrLen = 0   
+                arrLen = 0
             else:
                 arrLen = None
-            #arrLen = f.get("arrLen",None)    
+            #arrLen = f.get("arrLen",None)
             s += self.genVarOnlyDecl(f["type"] , f["name"],arrLen ) + ","
             #s = s + self.lookupType(f["type"])+ "  "+ f["name"] + ","
-        return s[:-1] 
+        return s[:-1]
     #####-------------------------------------
     def makeFuncDeclr(self,structt,retType,funName,args,isSingletonFun = False,isPrivate = False):
         """ Make a valid function declaration
 
         Arg:
           funName    - the base name (root) of the name. If it is part of a class
-                       it should be prefixed wih the class name (or what ever the 
+                       it should be prefixed wih the class name (or what ever the
                        programming language require)
           args       - function arguments
-          isSingletonFun  specifies whether it is a static class member 
+          isSingletonFun  specifies whether it is a static class member
           isPrivate       means that it will not be called externally
         """
         s = ""
@@ -217,7 +217,7 @@ class BaseCodeGenerator:
         s += retType + " " + nn + "(" + args + ")"
         return s
     def makeDeclFunArgList(self,structt):
-        return self.makeFieldListGeneric(structt,True, seperator = "," , inclParent = True , inclConst = False, inclPrivate = False )    
+        return self.makeFieldListGeneric(structt,True, seperator = "," , inclParent = True , inclConst = False, inclPrivate = False )
     def makeCallFunArgList(self,structt):
         return self.makeFieldListGeneric(structt,False, seperator = "," , inclParent = True , inclConst = False, inclPrivate = False )
     def makeDeclFunArgListAll(self,structt):
@@ -227,7 +227,7 @@ class BaseCodeGenerator:
     def makeClassMemberList(self,structt):
         return self.makeFieldListGeneric(structt,True, seperator = ";\n  " , inclParent = False , inclConst = True )
     def makeFieldListGeneric(self,structt,inclTypes, seperator = "," , inclParent = True , inclConst = False, noLastSeparater = True, inclArrLen =False, inclPrivate = False,setInitValue = True ):
-        """ Flexible generation of variable/argument list 
+        """ Flexible generation of variable/argument list
         """
         fields    = structt["body"]
         s = ""
@@ -235,35 +235,35 @@ class BaseCodeGenerator:
             parnt = self.getParent(structt)
             s += self.makeFieldListGeneric(parnt,inclTypes, seperator, inclParent , inclConst,inclArrLen = inclArrLen,setInitValue =setInitValue) + seperator
         for f in fields:
-            # if the field is assigned a value 
-            # do not include in the argument list 
+            # if the field is assigned a value
+            # do not include in the argument list
             # but can be over ridden with  inclConst
-            if "value" in f and inclConst == False: 
-                continue  
+            if "value" in f and inclConst == False:
+                continue
             if inclPrivate == False and f["name"].startswith("__"):
-                continue            
-            arrLen = f.get("arrLen",None)    
+                continue
+            arrLen = f.get("arrLen",None)
             if inclTypes:
                 #s += self.genVarDecl(f["type"] , f["name"],arrLen ) + seperator
-                s += self.genVarDecl(f, inclArrLen = inclArrLen, termstr = seperator,setInitValue = setInitValue ) 
-            else: 
+                s += self.genVarDecl(f, inclArrLen = inclArrLen, termstr = seperator,setInitValue = setInitValue )
+            else:
                 #s += self.genVarOnlyDecl(f["type"] , f["name"],arrLen ) + seperator
                 s += f["name"] + seperator
-        if  noLastSeparater: 
+        if  noLastSeparater:
             return s[:-len(seperator)]
-        return s         
-    def genPackLenCalc(self,structt):    
+        return s
+    def genPackLenCalc(self,structt):
         # calculate the struct size by finding the last field offset
-        lastField = structt["body"][-1]        
+        lastField = structt["body"][-1]
         return self.genPackFieldPosCalc(structt,lastField,True)
-    ## lookup if the sring is in the list          
+    ## lookup if the sring is in the list
     def findInConstList(self,lst,sstr):
         for itm in lst:
             if itm['name'] == sstr: return itm
         return None
     ## try to simplify the equation if it only contains numbers
-    def simplifyConstsInEq(self,eqs):    
-        if any(c not in '0123456789+*- ' for c in eqs):  
+    def simplifyConstsInEq(self,eqs):
+        if any(c not in '0123456789+*- ' for c in eqs):
             return eqs,False
         ll = eval(eqs)
         return str(ll),True
@@ -274,14 +274,14 @@ class BaseCodeGenerator:
     def lookupConst(self,structt,annotag):
         if "localConst" in structt:
             lst     = structt["localConst"]
-            anno = self.findInConstList(lst,annotag)            
-            if anno: 
+            anno = self.findInConstList(lst,annotag)
+            if anno:
                 if "value" in anno:
                     return anno['value']
                 if "string" in anno:
-                    return anno['string']        
+                    return anno['string']
                 if "expr" in anno:
-                    return anno['expr']        
+                    return anno['expr']
         if "parentName" in structt:
             parnt = structt["parentName"]
             parStruct = structDict[parnt]
@@ -290,7 +290,7 @@ class BaseCodeGenerator:
         # TODO: must still split the annotation explisitly
         #  not sure that this is the best approach
         if annotag in annotateDict: return annotagDict[annotag]
-        return None        
+        return None
 
 #        for itm in lst:
 #            if itm['name'] == sstr: return itm
@@ -305,35 +305,35 @@ class BaseCodeGenerator:
         elif expr == "$TIME_UNIX$":
             # TODO: get real time and convert to unix time
             rs.append("99999999")
-        # if start with "$$" find byte offset position 
+        # if start with "$$" find byte offset position
         # of field in buff at end of this field
-        elif expr[0] == "$" and expr[1] == "$":  
-            s1,pres = self.genPackFieldPosCalc(structt,expr[2:],includeField=True)    
+        elif expr[0] == "$" and expr[1] == "$":
+            s1,pres = self.genPackFieldPosCalc(structt,expr[2:],includeField=True)
             if pres:
                 s1,__  = self.simplifyConstsInEq(s1)
                 return s1
-        # if start with "$" find byte offset position 
+        # if start with "$" find byte offset position
         # of field in buff at start of this field
         elif expr[0] == "$":  # needs buffpos/address of the field
-            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
+            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)
             if pres: return s1
 
         # TODO: old stuff - remove
         if expr[0] == "&":  # needs buffpos/address of the field
-            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)    
+            s1,pres = self.genPackFieldPosCalc(structt,expr[1:],includeField=False)
             if pres: return s1
         if expr[-1] == "&":  # needs position in buff including this field
-            s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)    
+            s1,pres = self.genPackFieldPosCalc(structt,expr[:-1],includeField=True)
             if pres:
                 s1,__  = self.simplifyConstsInEq(s1)
                 return s1
         return expr
     def findParentFieldsUsingConsts(self,structt):
         """
-          Parents can assign constant symbols 
-          to fields. Child classes can redefine these values 
+          Parents can assign constant symbols
+          to fields. Child classes can redefine these values
           in which cases these fields should re-assign the values.
-          This function will determine if such constans are 
+          This function will determine if such constans are
           used in the parent fields.
 
           @return a list of fields that are re-assigned
@@ -343,15 +343,15 @@ class BaseCodeGenerator:
         if parnt == None: return fieldlist
         for fld in parnt["body"]:
             if "value" in fld:
-                splt = self.splitAssigmentEquation(fld["value"])    
+                splt = self.splitAssigmentEquation(fld["value"])
                 # look a each symbol and replace known values
                 for elm in splt:
                     # just skip if empty
                     if elm == "": continue
-                    # see if in symbol list     
-                    sym = self.lookupConst(structt,elm)   
-                    if sym is not None:  
-                        fieldlist.append(fld)   
+                    # see if in symbol list
+                    sym = self.lookupConst(structt,elm)
+                    if sym is not None:
+                        fieldlist.append(fld)
                         break # at least one present so stop looking
         return fieldlist
 
@@ -363,8 +363,8 @@ class BaseCodeGenerator:
         # first handle it if it is a string
         if eqs[0] == '"': return eqs
         # replace if a single replacement
-        sym = self.lookupConst(structt,eqs)     
-        if sym is not None: return sym   
+        sym = self.lookupConst(structt,eqs)
+        if sym is not None: return sym
         # TODO: partial replacement, e.g. CONST_LEN+2
         #sl = re.split(r"([\[\]\+\-\*/\)\(\=\>\<\!)])",eqs)
         splt = self.splitAssigmentEquation(eqs)
@@ -373,8 +373,8 @@ class BaseCodeGenerator:
         for elm in splt:
             # just skip if empty
             if elm == "": continue
-            # see if in symbol list and replace    
-            sym = self.lookupConst(structt,elm)     
+            # see if in symbol list and replace
+            sym = self.lookupConst(structt,elm)
             if sym is not None:
                 rs.append(sym)
             # special reserved symbols start with $
@@ -389,24 +389,24 @@ class BaseCodeGenerator:
         return eqs
     def genVarDecl(self,sfield,inclArrLen =False, termstr = ";", setInitValue = True):
         if not "type" in sfield:
-            return "" 
+            return ""
         vtype = sfield["type"]
         vname = sfield["name"]
-        if vtype in self.typeTableEnum: 
+        if vtype in self.typeTableEnum:
             s = "enum "+ sfield["enumName"] +" "+vname
-        elif vtype in self.typeTable2: 
+        elif vtype in self.typeTable2:
             s = self.lookupType(vtype) +" "+vname+"["+sfield["type"]+"]"
-        else:  
+        else:
             s = self.lookupType(vtype) +" "+vname
         if 'arrLen' in sfield:
-            if inclArrLen:  
+            if inclArrLen:
                 s = s +"["+sfield['arrLen']+"]"
             else:
                 s = s +"[]"
         if 'value' in sfield:
             if setInitValue:
                 s = s + " = " +  sfield["value"]
-        s = s + termstr   
+        s = s + termstr
         return s
     def isAnnoTagDefined(self,structt,annostr):
         """Check if the annotation is present for this structure
@@ -461,7 +461,7 @@ class BaseCodeGenerator:
         if "anno" in structt:
             lst     = structt["anno"]
             anno = self.findInConstList(lst,lannotag)
-            if anno: 
+            if anno:
                 if "value" in anno:
                     return anno['value']
                 if "string" in anno:
@@ -489,11 +489,11 @@ class CcodeGenerator(BaseCodeGenerator):
         indent = ""
         for ll in lines:
             if "{" in ll and "}" in ll : # special case with {} in same line
-                ss += indent + ll + "\n"  
+                ss += indent + ll + "\n"
                 continue
             if "}" in ll: indent  = indent[:-4]
-            ss += indent + ll + "\n"  
-            if "{" in ll: indent += "    " 
+            ss += indent + ll + "\n"
+            if "{" in ll: indent += "    "
         return ss
     def makeCondError(self,condi,msg=""):
         return "if ("+condi+") return ret;\n"
@@ -505,7 +505,7 @@ class CcodeGenerator(BaseCodeGenerator):
         # else:
         #     preamble = deref
         tsize = self.lookupTypeSize(f["type"])
-        if "arrLen" in f:  
+        if "arrLen" in f:
             # if it is a structure array unpack in a loop
             if f["type"] in structDict:
                 s  = "int ii;\n"
@@ -522,7 +522,7 @@ class CcodeGenerator(BaseCodeGenerator):
                 return s
             lenstr = str(tsize)+"*" + f["arrLen"]
             # TODO: Maybe would be better have a makeArrayDecl
-            s = "// just copy but no valid if endianess differ\n" 
+            s = "// just copy but no valid if endianess differ\n"
             #self.lookupFieldType(f) + "  " + f["name"] +"[" + f["arrLen"] + "];\n"
             ## this is only valid if the endianess is the same for multibyte types !!!!
             s += "    memcpy("+self.buffArrName+"+"+self.buffPosName+","+f["name"] +","+lenstr + ");\n"
@@ -532,14 +532,14 @@ class CcodeGenerator(BaseCodeGenerator):
             return self.makeAssignByteToArr(self.buffArrName,""+self.buffPosName+"++",deref+f["name"])
             #return self.buffArrName+"["+self.buffPosName+"++] = (uint8_t)"+deref+ f["name"] + ";\n"
             #return self.buffArrName+"["+self.buffPosName+"++] = (uint8_t)"+ f["name"] + ";\n"
-        elif tsize == 2: 
+        elif tsize == 2:
             # this is stored in little endian
             s  = self.makeAssignByteToArr(self.buffArrName,""+self.buffPosName+"++",deref+f["name"])
             s += "    "+self.makeAssignByteToArr(self.buffArrName,""+self.buffPosName+"++",deref+f["name"]+ ">>8")
             return s
             #s = self.buffArrName+"["+self.buffPosName+"++] = (uint8_t)"+deref+ f["name"] + ";\n"
             #return s + "    "+ self.buffArrName+"["+self.buffPosName+"++] = (uint8_t)("+deref+ f["name"] + ">>8);\n"
-        elif tsize == 4: 
+        elif tsize == 4:
             # this is stored in little endian
             s  = self.makeAssignByteToArr(self.buffArrName,""+self.buffPosName+"++",deref+f["name"])
             s += "    "+self.makeAssignByteToArr(self.buffArrName,""+self.buffPosName+"++",deref+f["name"]+ ">>8")
@@ -563,7 +563,7 @@ class CcodeGenerator(BaseCodeGenerator):
             s += "      "+self.buffPosName+" += ret;\n"
             s += "    } // end block\n"
             return s
-        s  = ""+self.buffPosName+"    += " + self.funcPackCallPrefix + f["type"].capitalize() 
+        s  = ""+self.buffPosName+"    += " + self.funcPackCallPrefix + f["type"].capitalize()
         s += "(" +self.buffArrName +", "+self.buffPosName+","+ f["name"] + ");\n"
         return s
     def genUnpackFieldCode(self,f,deref = None):
@@ -581,9 +581,9 @@ class CcodeGenerator(BaseCodeGenerator):
         else:
             preamble = deref
         tsize   = self.lookupTypeSize(f["type"])
-        bufname = self.buffArrName 
+        bufname = self.buffArrName
         s = ''
-        if "arrLen" in f:  
+        if "arrLen" in f:
             # if it is a structure array unpack in a loop
             if f["type"] in structDict:
                 s  = "int ii;\n"
@@ -595,7 +595,7 @@ class CcodeGenerator(BaseCodeGenerator):
                 s += "  "+self.buffPosName+" += ret;\n"
                 s += "} // for ii\n"
                 return s
-            # normally an array or a base type 
+            # normally an array or a base type
             #  - else unknown type and will give a compile error
             lenstr = str(tsize)+"*" + f["arrLen"]
             # type declaration
@@ -607,74 +607,74 @@ class CcodeGenerator(BaseCodeGenerator):
             return s + "pos += "+lenstr+";\n"
         if tsize == 1:
             return  preamble+ f["name"] + " = ("+self.lookupFieldType(f)+ ")" + bufname+"["+self.buffPosName+"++] " + ";\n"
-        elif tsize == 2: 
+        elif tsize == 2:
             # this is  little endian
             return  preamble +f["name"] + " = ("+ self.lookupFieldType(f)+ ")(" + bufname+"["+self.buffPosName+"] + ("  + bufname+"["+self.buffPosName+"+1]<<8)" +  ");\n"+self.buffPosName+" +=2;\n"
             #return  self.lookupType(f["type"])+"  "+f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"["+self.buffPosName+"] + ("  + bufname+"["+self.buffPosName+"+1]<<8)" +  ");\n"+self.buffPosName+" +=2;\n"
-        elif tsize == 4: 
+        elif tsize == 4:
             # this is  little endian
             return  preamble +f["name"] + " = ("+ self.lookupFieldType(f)+ ")(" + bufname+"["+self.buffPosName+"] + ("  + bufname+"["+self.buffPosName+"+1]<<8) + (((uint32_t)"+ bufname+"["+self.buffPosName+"+2])<<16) + (((uint32_t)"+ bufname+"["+self.buffPosName+"+3])<<24)) " +  ";\n"+self.buffPosName+" +=4;\n"
             #return  self.lookupType(f["type"])+"  "+f["name"] + " = ("+ self.lookupType(f["type"])+ ")(" + bufname+"["+self.buffPosName+"] + ("  + bufname+"["+self.buffPosName+"+1]<<8) + (((uint32_t)"+ bufname+"["+self.buffPosName+"+2])<<16) + (((uint32_t)"+ bufname+"["+self.buffPosName+"+3])<<24)) " +  ";\n"+self.buffPosName+" +=4;\n"
         # if we get here it is probably a single struct
         s  = f["type"] + self.typePostfix + "  " + f["name"] + ";\n"
 
-        if f["type"] in structDict: 
+        if f["type"] in structDict:
             s += "// Read a structured type\n"
             structt = structDict[f["type"]]
             args    = "&"+f["name"] +",buff,"+self.buffPosName+""
             tmpvar  = f["name"]+"_ret"
             s += self.intTypeName +" " +tmpvar + " = " + self.makeUnpackFunCall(structt,args,namePrefix = "") + ";\n"
-            s += "if (" +tmpvar+" <0) return "+tmpvar+";\n" 
+            s += "if (" +tmpvar+" <0) return "+tmpvar+";\n"
             s += ""+self.buffPosName+" += " + tmpvar +";\n"
         else:
             s += "// Unknown type found - generate a skeleton \n"
             s += ""+self.buffPosName+"    += " + self.makeFuncDeclr(f,"",self.funcUnpackInStruct,"???") +";\n"
 
-        #s += ""+self.buffPosName+"    += " + self.funcPackCallPrefix + f["type"].capitalize() 
+        #s += ""+self.buffPosName+"    += " + self.funcPackCallPrefix + f["type"].capitalize()
         #s += "(" +self.buffArrName +", "+self.buffPosName+","+ f["name"] + ");\n"
         return s
-    def genPackFields(self,structt,structPrefix = ""):    
+    def genPackFields(self,structt,structPrefix = ""):
         fields    = structt["body"]
         s = ""
         for f in fields:
             if f["type"] == "CRC16":
               p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
               p2,fnd2 = self.genPackFieldPosCalc(structt,f['rangeEnd'],True)
-              s += "    int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.buffArrName+", "+p1 + "," + p2 + ");\n" 
+              s += "    int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.buffArrName+", "+p1 + "," + p2 + ");\n"
             #-- check if it is assigned a value
             if "value" in f:
                 s += "    "+self.makeLineComment(" this is a fixed assigned field")
-                #s += "    " + f["name"] +" = " + f["value"] +";\n" 
+                #s += "    " + f["name"] +" = " + f["value"] +";\n"
                 s += "    " + self.makeConsVarDecl(self.lookupFieldType(f) ,f["name"],f["value"]) +"\n"
                 #s += "    " + self.makeConsVarDecl(f["type"],f["name"],f["value"]) +"\n"
             if "callName" in f :
                 #if "annoCheckVal" in f:   # should the constant value be checked
                     #s1 += self.makeLineComment(" call function to calc value")
-                    arg1 = self.replaceSymbsInFieldAssgn(structt,f["arg1"]); 
-                    arg2 = self.replaceSymbsInFieldAssgn(structt,f["arg2"]); 
+                    arg1 = self.replaceSymbsInFieldAssgn(structt,f["arg1"]);
+                    arg2 = self.replaceSymbsInFieldAssgn(structt,f["arg2"]);
                     s += "    "+ self.makeLineComment("call user function with "+f["arg1"]+" and " +f["arg2"])
                     funCallStr = f["callName"]+"(" +self.buffArrName +","+arg1+","+arg2 +")"
                     s += "    "+self.makeConsVarDecl(self.lookupFieldType(f),f["name"],funCallStr) +"\n"
-            s += "    " + self.genPackFieldCode(f,deref=structPrefix) 
-            #s += "    "+self.buffPosName+"    += " + self.funcPackNamePrefix + f["type"].capitalize() 
+            s += "    " + self.genPackFieldCode(f,deref=structPrefix)
+            #s += "    "+self.buffPosName+"    += " + self.funcPackNamePrefix + f["type"].capitalize()
             #s += "(" +self.buffArrName +", "+self.buffPosName+","+ f["name"] + ");\n"
-        return s 
+        return s
 
     def genUnpackFields(self,structt,stuctderef = None):
         if self.isStructDeclUsed(structt):
-            stuctderef = "this->"    
+            stuctderef = "this->"
         # else:
         #     stuctderef = None
         fields    = structt["body"]
         s = ""
         s1  = "    "
         for f in fields:
-            # # TODO: this will probably be remove - replace with @ function call 
+            # # TODO: this will probably be remove - replace with @ function call
             # if f["type"] == "CRC16":
             #     p1,fnd1 = self.genPackFieldPosCalc(structt,f['rangeStart'],False)
             #     p2,fnd2 = self.genPackFieldPosCalc(structt,f['rangeEnd'],True)
-            #     s += "    ??int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.buffArrName+", "+p1 + "," + p2 + ");\n" 
-            s1 += self.genUnpackFieldCode(f,deref = stuctderef) 
+            #     s += "    ??int16_t   "+f["name"] +" += CalcCRC16"+f["name"]+"("+self.buffArrName+", "+p1 + "," + p2 + ");\n"
+            s1 += self.genUnpackFieldCode(f,deref = stuctderef)
             # s1 += "// "+ f["type"] + " -> " + self.lookupFieldType(f) +    "\n"
             # check if it is assigned a value
             if "value" in f :
@@ -690,11 +690,11 @@ class CcodeGenerator(BaseCodeGenerator):
             if "callName" in f :
                 if "annoCheckVal" in f:   # should the constant value be checked
                     s1 += self.makeLineComment(" check the field value is equal to the returned function value")
-                    arg1 = self.replaceSymbsInFieldAssgn(structt,f["arg1"]); 
-                    arg2 = self.replaceSymbsInFieldAssgn(structt,f["arg2"]); 
+                    arg1 = self.replaceSymbsInFieldAssgn(structt,f["arg1"]);
+                    arg2 = self.replaceSymbsInFieldAssgn(structt,f["arg2"]);
                     s1 += self.makeLineComment("call user function with "+f["arg1"]+" and " +f["arg2"])
                     funCallStr = f["callName"]+"(" +self.buffArrName +","+arg1+","+arg2 +")"
-                    #s1 += self.lookupType(varType) + " " + "ret_"+f["name"] + " = " + 
+                    #s1 += self.lookupType(varType) + " " + "ret_"+f["name"] + " = " +
                     s1 += self.makeConsVarDecl(self.lookupFieldType(f),"ret_"+f["name"],funCallStr) +"\n"
                     s1 += "if ("+ "ret_"+f["name"] +" != "+f["name"] +") return "+self.constErrNotEqual+ ";" +"\n"
             #s += "(" +self.buffArrName +", "+self.buffPosName+","+ f["name"] + ");\n"
@@ -704,9 +704,9 @@ class CcodeGenerator(BaseCodeGenerator):
         # funname = self.getLocalAnno(structt,"call_after_unpack",default = "userfun")
         # funname = cleanstr(funname)
         # s += funname + "(" +self.buffArrName +", "+self.buffPosName+");\n"
-        return s 
-    # includeField indicate if the field named fieldName should be included in the "+self.buffPosName+"ition calculations    
-    def genPackFieldPosCalc(self,structt,fieldName,includeField):    
+        return s
+    # includeField indicate if the field named fieldName should be included in the "+self.buffPosName+"ition calculations
+    def genPackFieldPosCalc(self,structt,fieldName,includeField):
         fields    = structt["body"]
         s = ""
         if "parentName" in structt:
@@ -717,16 +717,16 @@ class CcodeGenerator(BaseCodeGenerator):
             if s != "":  s += "+ "
         for f in fields:
             # if the selected field size must be included
-            if includeField == False:    
-                if f["name"] == fieldName: 
+            if includeField == False:
+                if f["name"] == fieldName:
                     if len(s) < 1: return "0",True  # if it is the first element
                     return s[:-1],True
-            # if it is an array, multiply with the array length        
-            if 'arrLen' in f: 
+            # if it is an array, multiply with the array length
+            if 'arrLen' in f:
                 s = s +" ("+f['arrLen']+")*"
             # get the size of the element
             s += str(self.lookupTypeSize(f["type"]))+ "+"
-            if f["name"] == fieldName: 
+            if f["name"] == fieldName:
                 return s[:-1],True
         return s[:-1],False
     def genCreateFunDecl(self,structt,copyToBuff=True,msgIdArg = False,namePrefix = ""):
@@ -786,7 +786,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s += self.genPackFields(structt,structPrefix = structPrefix )
         return s
     def genPackFun(self,structt,msgIdArg = False,namePrefix = ""):
-        # determine if the function should be defined 
+        # determine if the function should be defined
         ret = self.getLocalAnno(structt,"pack","TRUE")
         if ret == "FALSE" : return ""    # function should not be generated
         # determine if a function call in pack is defined
@@ -796,7 +796,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s  = self.genPackFunDecl(structt,copyToBuff= not localBuffAndUserFunct,msgIdArg = msgIdArg,namePrefix = namePrefix)
         s += "\n{\n"
         #-- generate constant declaraions for the struct local constant assignments
-        locConst = structt.get("localConst",[])    
+        locConst = structt.get("localConst",[])
         for itm in locConst:
             valexp = itm.get("value","")+itm.get("expr","")
             s1 = self.makeConsVarDecl(self.intTypeName,itm["name"],valexp)
@@ -817,7 +817,7 @@ class CcodeGenerator(BaseCodeGenerator):
             s += self.genPackFields(parentStruct)
         #-- build the assignment of the data fields to the buffer
         s += self.genPackFields(structt)
-        # if a funcion must be called before return 
+        # if a funcion must be called before return
         if localBuffAndUserFunct:
             s += "    return  "+callFuncName+"("+self.buffArrName
             s += ", "+self.buffPosName+");\n"
@@ -827,7 +827,7 @@ class CcodeGenerator(BaseCodeGenerator):
         return s
 
     # make a function declaration for a user function that is called
-    # a the end of an unpack function. Note tis is only generated 
+    # a the end of an unpack function. Note tis is only generated
     # if a structure is annotate to have such a function
     def makeUserAferUnpackFunDecl(self,structt,inctypedecl=False): #,callParentUnpack=False,classLike=False,namePrefix = ""):
         if not self.isStructDeclUsed(structt):
@@ -855,7 +855,7 @@ class CcodeGenerator(BaseCodeGenerator):
                 return " " +funname+ "("+args+")"
         return ""
     def genUnpackFun(self,structt,callParentUnpack=False,classLike=False,namePrefix = ""):
-        # determine if the function should be defined 
+        # determine if the function should be defined
         ret = self.getLocalAnno(structt,"unpack","TRUE")
         if ret == "FALSE" : return ""    # function should not be generated
         s  = self.genUnpackFunDecl(structt,classLike=False,namePrefix = namePrefix)
@@ -884,9 +884,9 @@ class CcodeGenerator(BaseCodeGenerator):
     def genEnumStart(self,enm):
         return  "\ntypedef enum "+enm["enumName"] + " {"
     def genEnumEnd(self,enm):
-        return  "} "+enm["enumName"] + self.typePostfix +";\n"  
+        return  "} "+enm["enumName"] + self.typePostfix +";\n"
 
-    def genAllEnumDefs(self,separator = ","):    
+    def genAllEnumDefs(self,separator = ","):
         s = ""
         lastSeperator = len(s)
         for enm in enumList:
@@ -901,9 +901,9 @@ class CcodeGenerator(BaseCodeGenerator):
                 s += "\n"
             # remove the comma after the last enum
             if lastSeperator > 4:
-                s = s[:lastSeperator-1] + ' ' + s[lastSeperator:] 
+                s = s[:lastSeperator-1] + ' ' + s[lastSeperator:]
             s += self.genEnumEnd(enm) + "\n"
-            #s += "} "+enm["enumName"] + self.typePostfix +";\n"  
+            #s += "} "+enm["enumName"] + self.typePostfix +";\n"
         return s + "\n"
     # def genHeader(self,pp):
     #     s = "*Autogenerated code\n"
@@ -922,7 +922,7 @@ class CcodeGenerator(BaseCodeGenerator):
         #s += "      " + self.makeFieldListGeneric(structt,inclTypes = True, seperator = ";\n      " , inclParent = False , inclConst = False,  noLastSeparater = False ,inclArrLen =True )
         s1 = "      "
         for f in  structt["body"]:
-           s1 += self.genUnpackFieldCode(f) 
+           s1 += self.genUnpackFieldCode(f)
         s  += s1.replace("\n","\n      ")
         s += "if ("+self.buffPosName+" > buflen) "
         s += "   {\n        // error\n        "+self.errorHandlerName+'("Message '+structt['name']+' to short");\n'
@@ -943,17 +943,17 @@ class CcodeGenerator(BaseCodeGenerator):
     #             bstruct = self.findInConstList(lst,"MSG_BASE")
     #             # if MSG_BASE is declared, a message select and unpack is created
     #             if bstruct :
-    #                 s += self.genSelecAndProcessMsgFun(st)            
+    #                 s += self.genSelecAndProcessMsgFun(st)
     #     return s
 
     def genSelecAndProcessMsgFun(self,baseStructt):
         s  = "\n// This is the base message parser that should be called with\n// the byte array to be translated to a spesific message\n"
         s += "// First determine the struct/message type based on MSG_ID and\n// MSG_COND and then unpack\n"
 
- 
+
         #s += self.genUnpackFunDecl(baseStructt,namePrefix = self.funcCreateAndUnpackData)
         s += self.genCreateFromBuffFunDecl(baseStructt,retType="int") #,namePrefix = self.funcCreateAndUnpackData)
-        
+
         s += "\n{\n"
         s += "    "+self.intTypeName +" "+self.buffPosName+" = 0;\n"
         if "parentName" in baseStructt:
@@ -963,7 +963,7 @@ class CcodeGenerator(BaseCodeGenerator):
         s += self.genUnpackFields(baseStructt)
 
         # s += "\n}\n -- old \n"
- 
+
         # # old code
 
         # #s += self.singletonFuncDecl + self.lenTypeName + " " + "parseMsg(uint8_t buff[],int len) \n{\n"
@@ -992,7 +992,7 @@ class CcodeGenerator(BaseCodeGenerator):
                         s2 = "("+itm['expr']+")"
                 if len(s1)>1 and len(s2)>1:
                     s3 = "    if ("+s1+" && "+s2+") {\n"
-                else: 
+                else:
                     s3 = "    if "+s1+s2+" {    // "+ st["name"] + "\n"
                 if len(s1)>1 or len(s2)>1:
                     s += s3+ self.genProcessMsgDetail(st)
@@ -1024,7 +1024,7 @@ class CcodeGenerator(BaseCodeGenerator):
 
     def genStructFieldDecls(self,structt):
         # for each field, add a declaration
-        s  = ""  
+        s  = ""
         for f in structt["body"]:
             if 'value' in f:
               vv = f["value"]
@@ -1032,10 +1032,10 @@ class CcodeGenerator(BaseCodeGenerator):
               vv = None
             s += "  "+self.genVarDecl(f, termstr = ";\n",setInitValue = False)
             #s += "  "+self.genVarDecl(f["type"],f["name"],vv, termstr = ";\n")
-        return s   
-    def genStructDeclBegin(self,structname,parentstruct= None):        
+        return s
+    def genStructDeclBegin(self,structname,parentstruct= None):
         s  = "typedef struct "+structname+" {\n"
-        if parentstruct is not None: 
+        if parentstruct is not None:
             s += "  " + parentstruct['name'] + " ??;\n"
         #s += "{\n \n"
         return s
@@ -1071,7 +1071,7 @@ class CcodeGenerator(BaseCodeGenerator):
             nn = "" #convertCamelToSnake(structt["name"])
             # if self.isStructDeclUsed(structt):
             #     s += self.genUnpackFunDecl(structt,classLike=True)
-            # else:    
+            # else:
             s += self.genUnpackFunDecl(structt,namePrefix = nn ) #,msgIdArg = msgIdArg,namePrefix = namePrefix)
             s += ";\n"
             s += self.genPackFunDecl(structt,namePrefix = nn)
@@ -1089,7 +1089,7 @@ class CcodeGenerator(BaseCodeGenerator):
                 s += "    return "+siz+"; \n}\n"
 
             # in most cases there is one structure that defines the header
-            # this is a special struct that needs more code to full fill its role 
+            # this is a special struct that needs more code to full fill its role
             # as base from which the other messages are 'created'
             if self.isAnnoTagDefined(structt,"MSG_BASE"):
                 s += "\n//============== base =================\n\n"
@@ -1098,7 +1098,7 @@ class CcodeGenerator(BaseCodeGenerator):
     #     s = ""
     #     for structt in structList:
     #         s += self.makeUserAferUnpackFunDecl(structt)
-    #     return s   
+    #     return s
 
     def genUserFuncDecls(self):
         s  = ""
@@ -1134,7 +1134,7 @@ class CcodeGenerator(BaseCodeGenerator):
         su += '#include "inttypes.h"\n'
         su += self.genUserFuncDecls()
         su += "#endif  // "+hprot +"\n"
-        # generate header    
+        # generate header
         sh  = ""
         sh += self.genFileHeader(hfilename)
         hprot = "__"+hfilename.upper().replace(".","_").replace("/","_") +"__"
@@ -1152,7 +1152,7 @@ class CcodeGenerator(BaseCodeGenerator):
         sh += self.makeLineCommentDivider()
         sh += self.genStructPrototypes()
         sh += "#endif  // "+hprot +"\n"
-        
+
         sc  = "// C code \n"
         sc += self.genFileHeader(cfilename)
         sc += '#include "'+hfilename +'"\n'
@@ -1165,7 +1165,7 @@ class CcodeGenerator(BaseCodeGenerator):
             sc += self.genUnpackFun( structt) +"\n"
             if self.isAnnoTagDefined(structt,"MSG_BASE"):
                 sc += "\n//============== base =================\n\n"
-                sc += self.genSelecAndProcessMsgFun(structt)  
+                sc += self.genSelecAndProcessMsgFun(structt)
 
         #sc += self.genProcessMsgFuns()
         return sh,sc,su
@@ -1178,7 +1178,7 @@ class OOcodeGenerator(CcodeGenerator):
         self.LANG = BaseCodeGenerator.LANG_CPP
     def genClassDeclBegin(self,structname,parentstruct= None):
         s = "class "+structname+" "
-        if parentstruct is not None: 
+        if parentstruct is not None:
             s += ": public " + parentstruct + "\n"
         s += "{\n public:\n"
         return s
@@ -1188,7 +1188,7 @@ class OOcodeGenerator(CcodeGenerator):
 
     def genClassDef(self,struct):
         parent = struct.get("parentName",None)
-        s  = self.genClassDeclBegin(struct["name"],parent) 
+        s  = self.genClassDeclBegin(struct["name"],parent)
         #  for each field, add a declaration
         s += self.genStructFieldDecls(struct)
         # for f in struct["body"]:
@@ -1258,14 +1258,14 @@ class MarkdownGenerator(CcodeGenerator):
         if linktag is None: linktag= ltext
         #if ltext in enumList:
         #   s ="["+ltext+"](#"+"enum-" + ltext.lower() +")"
-        #elif ltext in structList:  
+        #elif ltext in structList:
         s ="["+ltext+"](#" + linktag.lower() +")"
         return s
     # def checkForLink(m,ltext):
-    #     # search through the ext o see if there are any 
+    #     # search through the ext o see if there are any
     #     #if ltext in enumList:
     #     #   s ="["+ltext+"](#"+"enum-" + ltext.lower() +")"
-    #     #elif ltext in structList:  
+    #     #elif ltext in structList:
     #     s ="["+ltext+"](#" + linktag.lower() +")"
     #     return s
     def genDocEnums(m):
@@ -1279,7 +1279,7 @@ class MarkdownGenerator(CcodeGenerator):
             #     s += st["parentName"] + m.BOLT + " and add these" + m.BR
             #     parentstr = m.ROW + "Parent" + m.COL + m.genInternalLink(st["parentName"]) + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
             #     #parentstr = m.ROW + "Parent" + m.COL + st["parentName"] + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
-            # else: 
+            # else:
             #     parentstr = ""
             #     s += "Fields in this structure" + m.BR
             s += m.ROW + "Tag" + m.COL + "Value" + m.COL + "Comment"  + m.COL
@@ -1289,8 +1289,8 @@ class MarkdownGenerator(CcodeGenerator):
                 else: cmt = ""
                 if "comment2" in vv: cmt += " " +vv["comment2"]
                 s += m.ROW + vv["name"] + m.COL + vv["value"] + m.COL + cleanstrNL(cmt) + m.COL
-            s += m.NLNL 
-        return s        
+            s += m.NLNL
+        return s
     def genDocStructs(m):
         s  = m.H2 + "Structures\n" + m.LINE
         for st in structList:
@@ -1298,23 +1298,37 @@ class MarkdownGenerator(CcodeGenerator):
             s += m.H3 + st["name"] +"\n"
             if "comment" in st:
                 s += cleanstr(st["comment"]) +m.NLNL
+            if "retags" in st:
+                s += m.BR + m.BOLT+ "Message tag values" + m.BOLT+ m.NLNL
+                s += "The values of the following field(s) from parent classes are overridden" + m.NLNL
+                s += m.ROW + "Tag" + m.COL + "Value" + m.COL + "From" + m.COL + "Comment"  + m.COL
+                s += m.ROW + "------" + m.COL + "-----" + m.COL +"-----" + m.COL + "------------------------------"  + m.COL
+                for tag in st["retags"]:
+                    parnt = "-"
+                    if "parentName" in st: parnt = st["parentName"]
+                    if "comment2" in tag: cmt = cleanstr(tag["comment2"])
+                    else: cmt = ""
+                    s += m.ROW +  tag["name"]  + m.COL + tag["expr"] + m.COL +  parnt+m.COL +cmt + m.COL
+                s += m.BR + m.BOLT+ "Message TAGS" + m.BOLT+ m.NLNL
+                for tag in st["retags"]:
+                    s += m.LIST +  tag["name"]  + "  =  " + tag["expr"] + m.NLNL
             if "anno" in st:
                 s += m.BR + m.BOLT+ "Annotations" + m.BOLT+ m.NLNL
                 for loc in st["anno"]:
-                    #s1 = loc.get("value","") + loc.get("eval","") + loc.get("sval","") 
+                    #s1 = loc.get("value","") + loc.get("eval","") + loc.get("sval","")
                     s1 = ""
                     s += m.LIST +  loc["name"]  + "  =  " + s1 + m.NLNL
             if "localConst" in st:
                 s += m.BR + m.BOLT+ "Structure locals constants" + m.BOLT+ m.NLNL
                 for loc in st["localConst"]:
-                    s1 = loc.get("value","") + loc.get("eval","") + loc.get("expr","") 
+                    s1 = loc.get("value","") + loc.get("eval","") + loc.get("expr","")
                     s += m.LIST +  loc["name"]  + "  =  " + s1 + m.NLNL
                 #if table
                 # s += "Structure value definitions " + m.NLNL
                 # s += m.ROW + "Symbol" + m.COL + "Value" + m.COL + "Comment"  + m.COL
                 # s += m.ROW + "------" + m.COL +"-----" + m.COL + "------------------------------"  + m.COL
                 # for loc in st["localConst"]:
-                #     s1 = loc.get("value","") + loc.get("eval","") + loc.get("sval","") 
+                #     s1 = loc.get("value","") + loc.get("eval","") + loc.get("sval","")
                 #     s += m.ROW +  loc["name"]  + m.COL + s1 + m.COL + " " + m.COL
                 # s += m.NLNL
 
@@ -1323,7 +1337,7 @@ class MarkdownGenerator(CcodeGenerator):
                 s += st["parentName"] + m.BOLT + " and add these" + m.BR
                 parentstr = m.ROW + "Parent" + m.COL + m.genInternalLink(st["parentName"]) + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
                 #parentstr = m.ROW + "Parent" + m.COL + st["parentName"] + m.COL + "" + m.COL + "This data prepend this structure"  + m.COL
-            else: 
+            else:
                 parentstr = ""
                 s += "Fields in this structure" + m.BR
             s += m.ROW + "Field" + m.COL + "Type" + m.COL + "Array" + m.COL + "Comment"  + m.COL
@@ -1333,24 +1347,29 @@ class MarkdownGenerator(CcodeGenerator):
                 if "comment" in f: cmt = cleanstr(f["comment"])
                 else: cmt = ""
                 if "comment2" in f: cmt += " " +f["comment2"]
-                if "arrLen" in f: 
+                if "arrLen" in f:
                     arrLen = f["arrLen"]
-                else: 
+                else:
                     arrLen = "-"
-                if f["type"].find("enum")>=0: 
+                # if "retagid" in f:
+                #     continue
+                #     #etxt  = f["retagid"]
+                #     vtype = f[""] + " " + m.genInternalLink(etxt,"enum-"+etxt)
+                # el
+                if f["type"].find("enum")>=0:
                     etxt  = f["enumName"]
                     vtype = f["type"] + " " + m.genInternalLink(etxt,"enum-"+etxt)
-                elif f["type"] in structDict: 
+                elif f["type"] in structDict:
                     etxt  = f["type"]
                     vtype = f["type"] + " " + m.genInternalLink(etxt,etxt)
                 else: vtype = f["type"]
                 s += m.ROW + f["name"] + m.COL + vtype + m.COL + arrLen + m.COL + cleanstrNL(cmt) + m.COL
-            slen,ret = m.genPackLenCalc(st)    
+            slen,ret = m.genPackLenCalc(st)
             simlen,canSimplify = m.simplifyConstsInEq(slen)
-            if canSimplify : simlen = simlen 
+            if canSimplify : simlen = simlen
             else : simlen = "variable"
             s += m.ROW + "Total" + m.COL + " length" + m.COL + simlen + m.COL + slen  + m.COL
-            s += m.NLNL 
+            s += m.NLNL
         return s
 
     def genDocHeader(m):
@@ -1359,7 +1378,7 @@ class MarkdownGenerator(CcodeGenerator):
             s += m.H1 +  cleanstr(annotateDict["doc_header"])+ m.NLNL
         else:
             s += m.H1 +  "Title" + m.NLNL
-        s += m.H3 
+        s += m.H3
         if "name" in annotateDict:
             s += cleanstr(annotateDict["name"])
         if "version" in annotateDict:
@@ -1370,7 +1389,7 @@ class MarkdownGenerator(CcodeGenerator):
             s += m.H2 + "Intoduction\n" + cleanstr(annotateDict["doc_intro"]) + m.NLNL
         return s
     def genAll(m):
-        s  = m.genDocHeader()      
+        s  = m.genDocHeader()
         s += m.DLINE
         s += m.genDocEnums()
         s += m.DLINE
@@ -1391,15 +1410,15 @@ class OOpythonGenerator(OOcodeGenerator):
         #typeTable2           = {"string":"","zstring":"char","ustring":"wchar","uzstring":"wchar"}
         # set the language
         self.LANG = BaseCodeGenerator.LANG_PY
-    def lookupType(self,vartype):  
+    def lookupType(self,vartype):
         return ""
     def genEnumStart(self,enm):
         return  "\nclass "+enm["enumName"] + "(IntEnum):"
     def genEnumEnd(self,enm):
-        return  "\n"  
+        return  "\n"
     def genClassDeclBegin(self,structname,parentstruct= None):
         s = "class "+structname
-        if parentstruct is not None: 
+        if parentstruct is not None:
             s += "(" + parentstruct + ")"
         return s + ":\n"
     def genClassDeclEnd(self,structname):
@@ -1438,37 +1457,37 @@ void testfun(void)
 } // end test
 '''
 
-/* 
+/*
  This is the common header for everybody.
 */
 struct GGheader
 {
-    /* This is to test a very long comment line. 
+    /* This is to test a very long comment line.
        The destination is where the message should be send to.
        Each device should be allocated a fixed address.
     */
   uint8     dest;   // Alt dest comment
   MSGID16   mM; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
   uint16    msg_id = MSG_ID; // This is to test a very long comment line. Abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz
-  CRC16     CalcCrc16[dest:msgid];  //  CRC16     CalcCrc16(dest..msgid); 
-}  
+  CRC16     CalcCrc16[dest:msgid];  //  CRC16     CalcCrc16(dest..msgid);
+}
 
 enum Gender {
-    UNKNOWN = 0;    
+    UNKNOWN = 0;
     MALE    = 1;   // set as male
     FEMLE   = 0x2;   // set as female
-    OTHER   = 0x3;   // if a person identifies with a different gender 
+    OTHER   = 0x3;   // if a person identifies with a different gender
 }
 
 /*
   This is the message to set the user profile.
   Line 2 of comment
 */
-struct SetProfile headedby GGheader 
+struct SetProfile headedby GGheader
 @CC=56
 @CV=542
 <MSG_ID = 0x1155>  <ARRLEN = 10>
-{ 
+{
   int32 id = 1;      // the user identificatin number
   char[20]  surname; // the user surname
   enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
@@ -1477,7 +1496,7 @@ struct SetProfile headedby GGheader
   int8     dlen;
   CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
   char[dlen]    addit;
-  zstring email = "eeeeee"; 
+  zstring email = "eeeeee";
 }"""
 
 
@@ -1505,22 +1524,22 @@ void testfun(void)
 
 /* These are the main commands.
 */
-enum cmd_t { 
-    CMD_BROADCAST      = 0x0A;  // All messages using this tag will be broadcasted to all addresses, e.g. audio files 
-    CMD_BROADCAST_ACK  = 0x03;  // An ackowladge if the broadcast command was sucessfull 
+enum cmd_t {
+    CMD_BROADCAST      = 0x0A;  // All messages using this tag will be broadcasted to all addresses, e.g. audio files
+    CMD_BROADCAST_ACK  = 0x03;  // An ackowladge if the broadcast command was sucessfull
     CMD_READ           = 0x15;
     CMD_READ_ACK       = 0x16;
     CMD_WRITE          = 0x29;
     CMD_WRITE_ACK      = 0x30;  // Acknowladge send on a write
     CMD_WR_SLAVE       = 0x3D;  // Not used: Reserved to be used to write to a single seat unit.
     CMD_DEBUG          = 0x1A;  // Debug command only and should be ignored otherwise.
-    CMD_NACK           = 0x04;  // A negative ackowladge used if any command failed  
-    CMD_ACK_HEADER     = 0x05;  // An ackowladge used if the header was recieved withhout error.  
+    CMD_NACK           = 0x04;  // A negative ackowladge used if any command failed
+    CMD_ACK_HEADER     = 0x05;  // An ackowladge used if the header was recieved withhout error.
     }
 
 
-/* 
- This is the common header for all messages. 
+/*
+ This is the common header for all messages.
 */
 struct MsgHeader
 {
@@ -1528,23 +1547,23 @@ struct MsgHeader
     uint32  magic = 0x900DBEEF;
     /*
        The destination address is where the message should be send to.
-       Devices are allocated a fixed address. The address for the master streamer 
+       Devices are allocated a fixed address. The address for the master streamer
        is always 0. Seat units are each configured with ther own addresses.
-       Messages can be either directed to a single device or broadcasted 
+       Messages can be either directed to a single device or broadcasted
        depending on the command. If it is a broadcast command the destination
        will still be for a spesific address and that address should send CMD_BROADCAST_ACK
-       acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error. 
-       When broadcasted the broadcast address 
+       acknowladges or a CMD_ACK_HEADER on sucess or a CMD_NACK on an error.
+       When broadcasted the broadcast address
     */
-    uint8       destAddr;   
+    uint8       destAddr;
     uint8       sourceAddr;         // The source address.
-    enum8 cmd_t    cmd    = CMD_ID; // This is the message identifier. 
-    
-}  
+    enum8 cmd_t    cmd    = CMD_ID; // This is the message identifier.
+
+}
 
 /*
-  The read command reads information from the seat units, normally statistics 
-  and state changes. The seat unit should respond with a CMD_READ_ACK or 
+  The read command reads information from the seat units, normally statistics
+  and state changes. The seat unit should respond with a CMD_READ_ACK or
   CMD_NAC on failure.
 */
 struct ReadMsg headedby MsgHeader
@@ -1552,33 +1571,33 @@ struct ReadMsg headedby MsgHeader
 @CV=542
 <CMD_ID = 0x15>  <ARRLEN = 10>
 {
-      
-    enum8 read_t   subCmd ;         // 
+
+    enum8 read_t   subCmd ;         //
     uint16         len    = 0;     // no data send with this message
     /*
-      A sequence number assosiated with this message and returned 
+      A sequence number assosiated with this message and returned
       by the CMD_READ_ACK
     */
     uint16         seqNr;       // crc use for integrity checking
-    CRC16          crc16[destAddr:seqNr]; 
+    CRC16          crc16[destAddr:seqNr];
 }
 
 enum Gender {
-    UNKNOWN = 0;    
+    UNKNOWN = 0;
     MALE    = 1;   // set as male
     FEMLE   = 0x2;   // set as female
-    OTHER   = 0x3;   // if a person identifies with a different gender 
+    OTHER   = 0x3;   // if a person identifies with a different gender
 }
 
 /*
   This is the message to set the user profile.
   Line 2 of comment
 */
-struct SetProfile headedby MsgHeader 
+struct SetProfile headedby MsgHeader
 @CC=56
 @CV=542
 <MSG_ID = 0x1155>  <ARRLEN = 10>
-{ 
+{
   int32 id = 1;      // the user identificatin number
   char[20]  surname; // the user surname
   enum8     ename  fieldvarname {  x1=1; x2=2; a1 = 3;  };
@@ -1587,12 +1606,12 @@ struct SetProfile headedby MsgHeader
   int8     dlen;
   CRC16     hdrCrc2[dest:dlen]; // a message calculated crc
   char[dlen]    addit;
-  zstring email = "eeeeee"; 
+  zstring email = "eeeeee";
 }"""
 
 def mainTest2():
     parseBxbDefStr(GGcomsDef)
-    docgen = MarkdownGenerator() 
+    docgen = MarkdownGenerator()
     s = docgen.genAll()
     print(s)
 

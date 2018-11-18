@@ -152,7 +152,7 @@ class OOcodeGenerator(CcodeGenerator):
         s  = "\n"
         # generate the comments
         s += self.codeCommentStart
-        s += "This is a static function to pack data. "
+        s += "This function packs the member fields into the buffer array. "
         s += self.doxPre + "param buff[]"+self.doxPost+"    buffer into which data should be packed "
         s += self.doxPre + "param pos"+self.doxPost+"       start position in buffer "
         s += self.doxPre + "return if > 0"+self.doxPost+"   position in array of last extracted data"
@@ -208,14 +208,19 @@ class OOcodeGenerator(CcodeGenerator):
         s += "  "+addIndent(s1) + ";\n"
         s += self.genClassDeclEnd(struct["name"])
         return s
-    def genClassImplementation(self,struct):
-        parent = struct.get("parentName",None)
+    def genClassImplementation(self,structt):
+        parent = structt.get("parentName",None)
         s  = self.makeLineCommentDivider2()
-        s += self.makeLineComment( "Class "+struct["name"] + " implementation")
+        s += self.makeLineComment( "Class "+structt["name"] + " implementation")
         s += self.makeLineCommentDivider()
         # generate the serialze and deserialize functions for the struct
-        s += self.genPackFun(struct,namePrefix = struct['name']+"::")
-        s += self.genUnpackFun(struct,namePrefix = struct['name']+"::",callParentUnpack=True)
+        s += self.genPackFun(structt,namePrefix = structt['name']+"::")
+        s += self.genUnpackFun(structt,namePrefix = structt['name']+"::",callParentUnpack=True)
+
+        if self.isAnnoTagDefined(structt,"MSG_BASE"):
+                s += "\n//============== base =================\n\n"
+                s += self.genSelecAndProcessMsgFun(structt)  
+
         #s += "  "+addIndent(s1) + "\n"
         return s
     def genAll(self,hFileName,cFileName):
@@ -238,7 +243,7 @@ class OOcodeGenerator(CcodeGenerator):
         ss += annotateDict.get('c_code',"")
         for st in structList:
             ss += self.genClassImplementation( st) +"\n"
-            scc = self.simplifyAssignment(st,"12*MSG_ID+MLEN==2-$BUFF$[445+$$msg_id]-$destAddr")
+            scc = self.simplifyAssignment(st,"12*MSG_ID+MLEN==2-crc($BUFF$[445+$$msg_id])-$destAddr")
             print (scc)
             llst = self.findParentFieldsUsingConsts(st)
             print(llst)
